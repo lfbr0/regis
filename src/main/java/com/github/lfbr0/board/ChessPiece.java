@@ -6,6 +6,8 @@ package com.github.lfbr0.board;
  * @project regis
  */
 
+import java.util.Set;
+
 /**
  * Represents generic chess pieces
  */
@@ -19,7 +21,18 @@ public abstract class ChessPiece {
         this.value = value;
     }
 
+    /**
+     * Returns the symbol for this piece in FEN notation.
+     * @return symbol for this piece in FEN notation.
+     */
     public abstract String toSymbol();
+
+    /**
+     * Returns a list of possible moves for this piece.
+     * Each move is represented by an index change in the board.
+     * @return set of possible moves represented by index changes in the board
+     */
+    public abstract Set<Integer> getMoveOffsets();
 
     public float getValue() {
         return value;
