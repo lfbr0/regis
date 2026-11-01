@@ -10,9 +10,6 @@ import com.github.lfbr0.board.ChessGameState;
 import com.github.lfbr0.board.ChessPiece;
 import com.github.lfbr0.board.piece.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -35,29 +32,34 @@ public class ChessMoveValidator {
     public static Set<ChessMove> getLegalMoves(ChessGameState state) {
         return IntStream
                 .range(0, 64) // for all indices, check all pieces
-                .parallel() // parallelize it
-                .filter(idx -> state.getBoard()[idx] != null) // only check pieces
+                .filter(idx -> {
+                    // check that we are grabbing a piece and it's our color
+                    ChessPiece piece = state.getBoard()[idx];
+                    return piece != null && piece.isWhite() == state.isWhiteTurn();
+                })
                 .mapToObj(idx -> new Object[]{ idx, state.getBoard()[idx] }) // idx, piece pair
                 .flatMap(idxPiecePair -> { // convert pair to chess move
                     int idx = (int) idxPiecePair[0];
                     ChessPiece piece = (ChessPiece) idxPiecePair[1];
 
-                    // for each move possible, convert it
-                    // but first assume possibility of being a passed pawn and promotion next turn (on penultimate row)
-                    if (idx >= 48 && idx <= 55 && piece instanceof PawnPiece) {
-                        return Stream
-                                // pieces that the pawn can promote to
-                                .of(BishopPiece.class, KnightPiece.class, RookPiece.class, QueenPiece.class)
-                                // map to all possible promotions
-                                .map(promoClass -> new ChessMove(idx, idx+1, promoClass));
-                    }
-                    // otherwise just do for all moves without promotion
-                    else {
-                        return piece
-                                .getMoveOffsets()
-                                .stream()
-                                .map(offset -> new ChessMove(idx, idx + offset, null));
-                    }
+                    return piece
+                            .getMoveOffsets()
+                            .stream()
+                            .map(offset -> idx + offset)
+                            .filter(to -> to >= 0 && to < 64) // filter moves out of board
+                            .flatMap(to -> {
+                                // if pawn is moving to last rank, it can promote
+                                boolean promotion = piece instanceof PawnPiece && to / 8 == (piece.isWhite() ? 7 : 0);
+
+                                if (promotion) {
+                                    return Stream
+                                            // promotable pieces
+                                            .of(BishopPiece.class, KnightPiece.class, RookPiece.class, QueenPiece.class)
+                                            .map(type -> new ChessMove(idx, to, type));
+                                }
+
+                                return Stream.of(new ChessMove(idx, to, null));
+                    });
                 })
                 .filter(move -> isLegalMove(state, move)) // get only legal moves
                 .collect(Collectors.toSet());
@@ -70,6 +72,12 @@ public class ChessMoveValidator {
      * @return true if legal move
      */
     public static boolean isLegalMove(ChessGameState state, ChessMove move) {
+
+        // is it inside the board?
+        if (move.getFrom() < 0 || move.getFrom() >= 64) {
+            return false;
+        }
+
         ChessPiece movingPiece = state.getBoard()[move.getFrom()];
 
         // does it point to an empty square?
@@ -85,6 +93,17 @@ public class ChessMoveValidator {
         // check if this move is possible for the piece (can we move piece this many squares?)
         int moveOffset = move.getTo() - move.getFrom();
         if (!movingPiece.getMoveOffsets().contains(moveOffset)) {
+            return false;
+        }
+
+        // are we moving to a place already occupied by us?
+        ChessPiece targetPiece = state.getBoard()[move.getTo()];
+        if (targetPiece != null && targetPiece.isWhite() == state.isWhiteTurn()) {
+            return false;
+        }
+
+        // are we trying to capture a king?
+        if (targetPiece instanceof KingPiece) {
             return false;
         }
 
