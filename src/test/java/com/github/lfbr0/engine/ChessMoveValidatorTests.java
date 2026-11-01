@@ -398,7 +398,7 @@ public class ChessMoveValidatorTests {
         Set<ChessMove> moves = ChessMoveValidator.getLegalMoves(state);
         assertFalse(moves.isEmpty());
         for (ChessMove move : moves) {
-            assertEquals("e1", move.getFrom());
+            assertEquals(4, move.getFrom());
         }
     }
 
@@ -524,7 +524,7 @@ public class ChessMoveValidatorTests {
 
     @Test
     public void blackCannotCastleThroughCheck() {
-        ChessGameState state = position(true, "k", null, "Ka1", "Rf1", "ke8", "rh8");
+        ChessGameState state = position(false, "k", null, "Ka1", "Rf1", "ke8", "rh8");
         assertMove(state, "e8g8", false);
     }
 
@@ -793,7 +793,7 @@ public class ChessMoveValidatorTests {
         Set<ChessMove> generated = ChessMoveValidator.getLegalMoves(state);
         assertNotNull("Generated moves", generated);
         Set<String> actual = generated.stream()
-                .filter(move -> move.getFrom().equals(from))
+                .filter(move -> move.getFrom() == ChessMove.squareStringToIndex(from))
                 .map(ChessMove::getUciMoveString)
                 .collect(Collectors.toSet());
         assertEquals("Moves from " + from, new HashSet<>(Arrays.asList(expected)), actual);

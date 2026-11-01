@@ -1,10 +1,7 @@
 package com.github.lfbr0.engine;
 
 import com.github.lfbr0.board.ChessPiece;
-import com.github.lfbr0.board.piece.BishopPiece;
-import com.github.lfbr0.board.piece.KnightPiece;
-import com.github.lfbr0.board.piece.QueenPiece;
-import com.github.lfbr0.board.piece.RookPiece;
+import com.github.lfbr0.board.piece.*;
 import lombok.Getter;
 
 import java.util.Objects;
@@ -22,10 +19,10 @@ public final class ChessMove {
 
     // move from where
     @Getter
-    private final String from;
+    private final int from;
     // move to where
     @Getter
-    private final String to;
+    private final int to;
     // promotion piece, if there's a promotion
     private final Class<? extends ChessPiece> promotionPieceClass;
 
@@ -34,8 +31,8 @@ public final class ChessMove {
             throw new IllegalArgumentException("Invalid move string: " + uciMoveString);
         }
 
-        from = uciMoveString.substring(0, 2);
-        to = uciMoveString.substring(2, 4);
+        from = ChessMove.squareStringToIndex(uciMoveString.substring(0, 2));
+        to = ChessMove.squareStringToIndex(uciMoveString.substring(2, 4));
 
         // if there's a promotion piece, decode it
         if (uciMoveString.length() == 5) {
@@ -50,6 +47,53 @@ public final class ChessMove {
         } else {
             promotionPieceClass = null;
         }
+    }
+
+    public ChessMove(int from, int to, Class<? extends ChessPiece> promotionPieceClass) {
+        if (from < 0 || from > 63) {
+            throw new IllegalArgumentException("Invalid from index: " + from);
+        }
+        this.from = from;
+
+        if (to < 0 || to > 63) {
+            throw new IllegalArgumentException("Invalid to index: " + to);
+        }
+        this.to = to;
+
+        if (promotionPieceClass == KingPiece.class || promotionPieceClass == PawnPiece.class) {
+            throw new IllegalArgumentException("Invalid promotion piece: " + promotionPieceClass);
+        }
+        this.promotionPieceClass = promotionPieceClass;
+    }
+
+    public ChessMove(int from, int to) {
+        this(from, to, null);
+    }
+
+    /**
+     * Converts a square string (e.g. "a1") to an index (0 to 63)
+     * @param squareStr Square string to convert (e.g. "a1")
+     * @return Index of the square string (0 to 63 - 0 = a1, 1 = b1, ...)
+     */
+    public static int squareStringToIndex(String squareStr) {
+        if (squareStr == null || !squareStr.matches("[a-h][1-8]")) {
+            throw new IllegalArgumentException("Invalid square string: " + squareStr);
+        }
+        return (squareStr.charAt(1) - '1') * 8 + squareStr.charAt(0) - 'a';
+    }
+
+    /**
+     * Converts an index to a square string (e.g. "a1")
+     * @param index Index to convert (0 to 63)
+     * @return Square string representation of the index (e.g. "a1")
+     */
+    public static String indexToSquareString(int index) {
+        if (index < 0 || index > 63) {
+            throw new IllegalArgumentException("Invalid index: " + index);
+        }
+
+        return "" + (char) ('a' + index % 8)
+                + (char) ('1' + index / 8);
     }
 
     /**
@@ -71,13 +115,15 @@ public final class ChessMove {
         else if (promotionPieceClass == BishopPiece.class) promotion = "b";
         else if (promotionPieceClass == KnightPiece.class) promotion = "n";
 
-        return from + to + promotion;
+        return ChessMove.indexToSquareString(from) + ChessMove.indexToSquareString(to) + promotion;
     }
 
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof ChessMove chessMove)) return false;
-        return Objects.equals(from, chessMove.from) && Objects.equals(to, chessMove.to) && Objects.equals(promotionPieceClass, chessMove.promotionPieceClass);
+        return  Objects.equals(from, chessMove.from) &&
+                Objects.equals(to, chessMove.to) &&
+                Objects.equals(promotionPieceClass, chessMove.promotionPieceClass);
     }
 
     @Override
