@@ -47,19 +47,20 @@ public class ChessGameState {
         this.fullmoveNumber = 1;
     }
 
-    public ChessGameState(String fen) {
-        ChessGameState state = FenCodec.decode(fen);
-        this(
-                state.getBoard(),
-                state.isWhiteTurn(),
-                state.isWhiteKingsideCastling(),
-                state.isWhiteQueensideCastling(),
-                state.isBlackKingsideCastling(),
-                state.isBlackQueensideCastling(),
-                state.getEnPassantSquare(),
-                state.getHalfmoveClock(),
-                state.getFullmoveNumber()
-        );
+    /**
+     * Creates a new ChessGameState from a FEN string.
+     * @param fenString FEN string
+     */
+    public ChessGameState(String fenString) {
+        ChessGameState state = FenCodec.decode(fenString);
+        this.board = state.getBoard();
+        this.isWhiteTurn = state.isWhiteTurn();
+        this.whiteKingsideCastling = state.isWhiteKingsideCastling();
+        this.whiteQueensideCastling = state.isWhiteQueensideCastling();
+        this.blackKingsideCastling = state.isBlackKingsideCastling();
+        this.blackQueensideCastling = state.isBlackQueensideCastling();
+        this.enPassantSquare = state.getEnPassantSquare();
+        this.halfmoveClock = state.getHalfmoveClock();
+        this.fullmoveNumber = state.getFullmoveNumber();
     }
-
 }
