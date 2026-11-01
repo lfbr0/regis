@@ -1,5 +1,8 @@
 package com.github.lfbr0.board;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
 /**
  * @author Luís Filipe Ribeiro (lfbr0 @ Github)
  * @date 10/31/26
@@ -9,6 +12,8 @@ package com.github.lfbr0.board;
 /**
  * This represents the Chess Board and it's state
  */
+@Data
+@AllArgsConstructor
 public class ChessGameState {
 
     // 64 squares, read from bottom left to top right
@@ -33,17 +38,28 @@ public class ChessGameState {
     public ChessGameState(ChessPiece[] board, boolean isWhiteTurn) {
         this.board = board;
         this.isWhiteTurn = isWhiteTurn;
-        this.whiteKingsideCastling = true;
-        this.whiteQueensideCastling = true;
-        this.blackKingsideCastling = true;
-        this.blackQueensideCastling = true;
+        this.whiteKingsideCastling = false;
+        this.whiteQueensideCastling = false;
+        this.blackKingsideCastling = false;
+        this.blackQueensideCastling = false;
         this.enPassantSquare = null;
         this.halfmoveClock = 0;
-        this.fullmoveNumber = 0;
+        this.fullmoveNumber = 1;
     }
 
     public ChessGameState(String fen) {
         ChessGameState state = FenCodec.decode(fen);
+        this(
+                state.getBoard(),
+                state.isWhiteTurn(),
+                state.isWhiteKingsideCastling(),
+                state.isWhiteQueensideCastling(),
+                state.isBlackKingsideCastling(),
+                state.isBlackQueensideCastling(),
+                state.getEnPassantSquare(),
+                state.getHalfmoveClock(),
+                state.getFullmoveNumber()
+        );
     }
 
 }

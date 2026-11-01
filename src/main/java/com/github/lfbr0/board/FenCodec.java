@@ -24,15 +24,35 @@ public class FenCodec {
             throw new IllegalArgumentException("Chess game state cannot be null");
         }
 
-        final StringBuilder fenStringBuilder = new StringBuilder();
+        // castling rights
+        StringBuilder castling = new StringBuilder();
+        if (state.isWhiteKingsideCastling()) castling.append('K');
+        if (state.isWhiteQueensideCastling()) castling.append('Q');
+        if (state.isBlackKingsideCastling()) castling.append('k');
+        if (state.isBlackQueensideCastling()) castling.append('q');
 
-        // start by enconding board
-        fenStringBuilder.append(encodeBoard(state.getBoard()));
+        // en passant square
+        String enPassant = state.getEnPassantSquare();
+        if (enPassant != null && !enPassant.matches("[a-h][36]")) {
+            throw new IllegalArgumentException("Invalid en passant square: " + enPassant);
+        }
 
-        // add active color
-        fenStringBuilder.append(" ").append(state.isWhiteTurn() ? "w" : "b");
+        if (state.getHalfmoveClock() < 0) {
+            throw new IllegalArgumentException("Halfmove clock cannot be negative");
+        }
 
-        return fenStringBuilder.toString();
+        if (state.getFullmoveNumber() < 1) {
+            throw new IllegalArgumentException("Fullmove number must be at least 1");
+        }
+
+        return new StringBuilder()
+                .append(encodeBoard(state.getBoard())) // actual board encoding
+                .append(' ').append(state.isWhiteTurn() ? 'w' : 'b')
+                .append(' ').append(castling.isEmpty() ? "-" : castling.toString())
+                .append(' ').append(enPassant == null ? "-" : enPassant)
+                .append(' ').append(state.getHalfmoveClock())
+                .append(' ').append(state.getFullmoveNumber())
+                .toString();
     }
 
     public static ChessGameState decode(String fen) {
@@ -40,9 +60,9 @@ public class FenCodec {
             throw new IllegalArgumentException("FEN string cannot be null");
         }
 
-        String[] fenTokens = fen.split(" ");
-        if (fenTokens.length < 1) {
-            throw new IllegalArgumentException("Please check the FEN string format: " + fen);
+        String[] fenTokens = fen.strip().split("\\s+");
+        if (fenTokens.length != 1 && fenTokens.length != 2 && fenTokens.length != 6) {
+            throw new IllegalArgumentException("Expected 1, 2, or 6 FEN fields");
         }
 
         // start by deciphering the rowboard
@@ -53,20 +73,51 @@ public class FenCodec {
         ChessPiece[] board = decodeBoard(fenRowsString.split("/"));
 
         // then, the turn - if no token, assume white
-        boolean isWhiteTurn;
+        boolean isWhiteTurn = true;
         if (fenTokens.length >= 2) {
             String activeColor = fenTokens[1];
             // validate color
-            switch (activeColor) {
-                case "w": isWhiteTurn = true; break;
-                case "b": isWhiteTurn = false; break;
-                default: throw new IllegalArgumentException("Invalid active color: " + activeColor);
-            }
-        } else {
-            isWhiteTurn = true;
+            isWhiteTurn = switch (activeColor) {
+                case "w" -> true;
+                case "b" -> false;
+                default -> throw new IllegalArgumentException("Invalid active color: " + activeColor);
+            };
         }
 
-        return new ChessGameState(board, isWhiteTurn);
+        // defaults for abbreviated input.
+        String castling = "-";
+        String enPassant = null;
+        int halfmoveClock = 0;
+        int fullmoveNumber = 1;
+
+        // parse castling rights, etc
+        if (fenTokens.length == 6) {
+            castling = fenTokens[2];
+
+            if (!castling.matches("-|KQ?k?q?|Qk?q?|kq?|q")) {
+                throw new IllegalArgumentException("Invalid castling rights: " + castling);
+            }
+
+            if (!fenTokens[3].matches("-|[a-h][36]")) {
+                throw new IllegalArgumentException("Invalid en passant square: " + fenTokens[3]);
+            }
+
+            enPassant = fenTokens[3].equals("-") ? null : fenTokens[3];
+            halfmoveClock = parseCounter(fenTokens[4], 0, "halfmove clock");
+            fullmoveNumber = parseCounter(fenTokens[5], 1, "fullmove number");
+        }
+
+        return new ChessGameState(
+                board,
+                isWhiteTurn,
+                castling.contains("K"),
+                castling.contains("Q"),
+                castling.contains("k"),
+                castling.contains("q"),
+                enPassant,
+                halfmoveClock,
+                fullmoveNumber
+        );
     }
 
     /**
@@ -224,4 +275,31 @@ public class FenCodec {
         }
     }
 
+    /**
+     * Parses a counter value from a string.
+     * @param value String value to parse
+     * @param minimum Minimum value allowed
+     * @param field Name of the field being parsed
+     * @return Parsed value
+     */
+    private static int parseCounter(String value, int minimum, String field) {
+        if (!value.matches("[0-9]+")) {
+            throw new IllegalArgumentException("Invalid " + field + ": " + value);
+        }
+
+        final int number;
+
+        try {
+            number = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(field + " is too large: " + value, e);
+        }
+
+        if (number < minimum) {
+            throw new IllegalArgumentException(
+                    field + " must be at least " + minimum);
+        }
+
+        return number;
+    }
 }
