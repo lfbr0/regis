@@ -10,11 +10,14 @@ import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.KingPiece;
 import com.github.lfbr0.move.Move;
-import com.github.lfbr0.move.MoveHandler;
 import com.github.lfbr0.move.MoveValidator;
 
-import java.util.Comparator;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static java.lang.Runtime.getRuntime;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 /**
  * This is the actual engine of Regis - the workhorse. Computes:
@@ -24,35 +27,79 @@ import java.util.Set;
  */
 public class Engine {
 
-    private static final double CHECKMATE_REWARD_VALUE = 100_000;
-    private static final double STALEMATE_REWARD_VALUE = 0;
+    private static final ExecutorService ENGINE_EXECUTOR_SERVICE = newFixedThreadPool(getRuntime().availableProcessors());
 
     /**
-     * Returns an ordered array of the best moves for the given state.
-     * First element is the best move.
-     * @param state current game state
-     * @return array of best n moves
+     * Evaluates legal moves concurrently, sharing one deadline.
+     * Stops early when a root move proves a forced checkmate.
+     * @return completed evaluations, best first; possibly fewer than count
      */
-    public static EngineMove[] bestMoves(GameState state, int count, int depth) {
-        if (state == null || count < 0 || depth < 1) {
-            throw new IllegalArgumentException("State must be != null, count must be > 0, and depth must be >= 1");
+    public static EngineMove[] bestMoves(GameState state, int count, int depth, long timeoutMillis) {
+
+        if (state == null || count < 0 || depth < 1 || timeoutMillis <= 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
+            throw new IllegalArgumentException("Invalid search arguments");
         }
 
-        boolean playerIsWhite = state.isWhiteTurn();
-        Set<Move> allLegalMoves = MoveValidator.getLegalMoves(state);
+        if (count == 0) {
+            return new EngineMove[0];
+        }
 
-        return allLegalMoves
-                .stream()
-                .map(move -> {
-                    // apply move, then search from the resulting position
-                    GameState nextState = MoveHandler.applyMove(state, move);
-                    double evaluation = evaluateDepth(nextState, playerIsWhite, depth - 1);
-                    return new EngineMove(move, evaluation);
-                })
-                // highest score first, assuming scores favor the original player
-                .sorted(Comparator.comparingDouble(EngineMove::evaluation).reversed())
+        // all evaluators get the same deadline and mate signal
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        AtomicBoolean mateFound = new AtomicBoolean(false);
+
+        // each search gets its own completion queue
+        CompletionService<Optional<EngineMove>> completed = new ExecutorCompletionService<>(ENGINE_EXECUTOR_SERVICE);
+
+        List<Future<Optional<EngineMove>>> futures = new ArrayList<>();
+        List<EngineMove> results = new ArrayList<>();
+
+        try {
+            for (Move move : MoveValidator.getLegalMoves(state)) {
+                if (System.nanoTime() - deadline >= 0) {
+                    break;
+                }
+
+                futures.add(completed.submit(new EngineMoveEvaluator(state, move, depth, deadline, mateFound)));
+            }
+
+            for (int received = 0; received < futures.size(); received++) {
+                // if time has expired, still collect results already queued
+                long timeLeft = Math.max(0, deadline - System.nanoTime());
+
+                Future<Optional<EngineMove>> finished = completed.poll(timeLeft, TimeUnit.NANOSECONDS);
+
+                if (finished == null) {
+                    break;
+                }
+
+                // stopped evaluators don't provide a usable score
+                finished.get().ifPresent(results::add);
+
+                // don't break merely because mateFound is true:
+                // the evaluator with the mating move may still be publishing
+                // its result into the completion queue
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Engine search failed", e.getCause());
+        } finally {
+            // stop any remaining work when collection ends
+            futures.forEach(future -> future.cancel(true));
+        }
+
+        return results.stream()
+                .sorted(Comparator.comparingDouble(EngineMove::evaluation).reversed()) // best result first
                 .limit(count)
                 .toArray(EngineMove[]::new);
+    }
+
+    /**
+     * Call when the application no longer needs the engine.
+     */
+    public static void shutdown() {
+        ENGINE_EXECUTOR_SERVICE.shutdownNow();
     }
 
     /**
@@ -82,57 +129,4 @@ public class Engine {
 
         return materialScore;
     }
-
-
-    /**
-     * AUXILIARY METHODS
-     */
-
-
-    /**
-     * Auxiliary method to evaluate the board state at a given depth.
-     * @param currentState current game state
-     * @param playerIsWhite true if the player is white, false otherwise
-     * @param remainingDepth remaining depth
-     * @return evaluation score
-     */
-    private static double evaluateDepth(GameState currentState, boolean playerIsWhite, int remainingDepth) {
-        // otherwise, get all legal moves and evaluate them, always assume best moves
-        Set<Move> allLegalMoves = MoveValidator.getLegalMoves(currentState);
-
-        // are we out of moves? possible checkmate or stalemate
-        if (allLegalMoves.isEmpty()) {
-            // if not in check, it's stalemate
-            if (!MoveValidator.isInCheck(currentState)) {
-                return STALEMATE_REWARD_VALUE;
-            }
-
-            // otherwise it's checkmate. if our turn, we lost!
-            return currentState.isWhiteTurn() == playerIsWhite
-                    ? -CHECKMATE_REWARD_VALUE
-                    : CHECKMATE_REWARD_VALUE;
-        }
-
-        // we have no more depth to explore, so just evaluate the board
-        if (remainingDepth == 0) {
-            return evaluate(currentState, playerIsWhite);
-        }
-
-        // we must maximize our score, and the opponent must minimize it
-        boolean playersTurn = currentState.isWhiteTurn() == playerIsWhite;
-        double bestScore = playersTurn ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
-
-        for (Move move : allLegalMoves) {
-            GameState nextState = MoveHandler.applyMove(currentState, move);
-            double evaluation = evaluateDepth(nextState, playerIsWhite, remainingDepth - 1);
-
-            // our turn: highest score; opponent's turn: lowest score
-            bestScore = playersTurn
-                    ? Math.max(bestScore, evaluation)
-                    : Math.min(bestScore, evaluation);
-        }
-
-        return bestScore;
-    }
-
 }
