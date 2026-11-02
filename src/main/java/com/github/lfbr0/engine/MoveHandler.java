@@ -195,12 +195,65 @@ public class MoveHandler {
     /**
      * Applies a pawn move.
      * Considers capture, en passant, and promotion.
-     * @param state
-     * @param move
-     * @return
+     * @param state current game state
+     * @param move move to apply, assumed valid
+     * @return new game state
      */
     private static GameState applyPawnMove(GameState state, Move move) {
-        return null; // TODO
+        int from = move.getFrom();
+        int to = move.getTo();
+        boolean isWhite = state.getPieceAtIndex(from).isWhite();
+
+        // check before moving, since the destination will contain our pawn afterward
+        // we're moving ranks and there's nothing there, so we can capture en passant
+        boolean enPassant = from % 8 != to % 8 && state.getPieceAtIndex(to) == null;
+
+        // apply ordinary movement, captures, castling rights, turn, and move counters
+        GameState movedState = applyPieceMove(state, move);
+        Piece[] newBoard = movedState.getBoardCopy();
+
+        // en passant captures the pawn behind the destination
+        if (enPassant) {
+            int capturedPawnIndex = isWhite ? to - 8 : to + 8;
+            newBoard[capturedPawnIndex] = null;
+        }
+
+        // if promoting, replace the pawn with the selected piece
+        if (move.getPromotionPieceClass().isPresent()) {
+            Class<? extends Piece> promotion = move.getPromotionPieceClass().orElseThrow();
+
+            if (promotion == QueenPiece.class) {
+                newBoard[to] = new QueenPiece(isWhite);
+            } else if (promotion == RookPiece.class) {
+                newBoard[to] = new RookPiece(isWhite);
+            } else if (promotion == BishopPiece.class) {
+                newBoard[to] = new BishopPiece(isWhite);
+            } else if (promotion == KnightPiece.class) {
+                newBoard[to] = new KnightPiece(isWhite);
+            } else {
+                throw new IllegalArgumentException("Invalid promotion piece: " + promotion);
+            }
+        }
+
+        // only a double advance creates a new en passant target
+        String enPassantSquare = null;
+
+        if (Math.abs(to - from) == 16) {
+            int crossedSquare = (from + to) / 2;
+            enPassantSquare = Move.indexToSquareString(crossedSquare);
+        }
+
+        return new GameState(
+                newBoard,
+                movedState.isWhiteTurn(),
+                movedState.isWhiteKingsideCastlingAllowed(),
+                movedState.isWhiteQueensideCastlingAllowed(),
+                movedState.isBlackKingsideCastlingAllowed(),
+                movedState.isBlackQueensideCastlingAllowed(),
+                enPassantSquare,
+                0, // every pawn move resets the halfmove clock
+                movedState.getFullmoveNumber()
+        );
     }
 
 }
