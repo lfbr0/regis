@@ -409,13 +409,98 @@ public class ChessMoveValidator {
 
     /**
      * Is the path between the two squares clear?
-     * Pawns, bishops, rooks, and queens cannot jump over pieces. Knights can.
+     * Bishops, rooks, and queens cannot jump over pieces. Knights can.
      * @param state current chess game state
      * @param move move to check
      * @return true if path is clear
      */
     private static boolean isPathClear(ChessGameState state, ChessMove move) {
-        // TODO
-        return false;
+        int from = move.getFrom();
+        int to = move.getTo();
+        ChessPiece movingPiece = state.getBoard()[from];
+
+        if (movingPiece instanceof BishopPiece) {
+            boolean movingUp = to / 8 > from / 8;
+            boolean movingRight = to % 8 > from % 8;
+
+            // determine the index change for one diagonal square
+            int step;
+
+            if (movingUp && movingRight) {
+                step = 9;
+            } else if (movingUp) {
+                step = 7;
+            } else if (movingRight) {
+                step = -7;
+            } else {
+                step = -9;
+            }
+
+            // check only squares between origin and destination
+            for (int curr = from + step; curr != to; curr += step) {
+                if (state.getBoard()[curr] != null) {
+                    return false;
+                }
+            }
+        }
+        else if (movingPiece instanceof RookPiece) {
+            boolean sameRank = from / 8 == to / 8;
+
+            // determine the index change for one horizontal or vertical square
+            int step;
+
+            if (sameRank) {
+                boolean movingRight = to % 8 > from % 8;
+                step = movingRight ? 1 : -1;
+            } else {
+                boolean movingUp = to / 8 > from / 8;
+                step = movingUp ? 8 : -8;
+            }
+
+            // check only squares between origin and destination
+            for (int curr = from + step; curr != to; curr += step) {
+                if (state.getBoard()[curr] != null) {
+                    return false;
+                }
+            }
+        }
+        else if (movingPiece instanceof QueenPiece) {
+            boolean sameRank = from / 8 == to / 8;
+            boolean sameFile = from % 8 == to % 8;
+            boolean movingUp = to / 8 > from / 8;
+            boolean movingRight = to % 8 > from % 8;
+
+            // determine the index change for one square
+            int step;
+
+            // moving horizontally, like a rook
+            if (sameRank) {
+                step = movingRight ? 1 : -1;
+            }
+            // moving vertically, like a rook
+            else if (sameFile) {
+                step = movingUp ? 8 : -8;
+            }
+            // otherwise moving diagonally, like a bishop
+            else if (movingUp && movingRight) {
+                step = 9;
+            } else if (movingUp) {
+                step = 7;
+            } else if (movingRight) {
+                step = -7;
+            } else {
+                step = -9;
+            }
+
+            // check only squares between origin and destination
+            for (int curr = from + step; curr != to; curr += step) {
+                if (state.getBoard()[curr] != null) {
+                    return false;
+                }
+            }
+        }
+
+        // no issues found, path is clear
+        return true;
     }
 }
