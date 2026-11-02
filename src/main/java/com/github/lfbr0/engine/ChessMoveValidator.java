@@ -107,25 +107,25 @@ public class ChessMoveValidator {
             return false;
         }
 
+        // are we promoting despite not being a pawn?
+        if (move.getPromotionPieceClass().isPresent() && !(movingPiece instanceof PawnPiece)) {
+            return false;
+        }
+
         // check file/rank differences. An allowed offset alone can wrap across board edges.
         if (!validGeometry(movingPiece, move.getFrom(), move.getTo())) {
             return false;
         }
 
-        /**
-         * Pawn rules:
-         * - Forward destination must be empty.
-         * - Double advance requires the starting rank and both squares empty.
-         * - Diagonal movement requires an enemy piece or valid en passant.
-         * - En passant must remove the adjacent enemy pawn when simulating.
-         */
-        // TODO
+        // verify en passant, etc.
+        if (movingPiece instanceof PawnPiece && !validPawnMove(state, move)) {
+            return false;
+        }
 
-        // bishops, rooks, and queens cannot jump over pieces. Knights can. - path is clear?
-        // TODO
-
-        // required when a pawn reaches the last rank; forbidden otherwise and for other pieces.
-        // TODO
+        // pawns, bishops, rooks, and queens cannot jump over pieces. Knights can. - path is clear?
+        if (!isPathClear(state, move)) {
+            return false;
+        }
 
         // requires the correct right, king and rook on their starting squares, and an empty path.
         // the king cannot start in, pass through, or land in check.
@@ -316,4 +316,100 @@ public class ChessMoveValidator {
         return true;
     }
 
+    /**
+     * Pawn rules:
+     * - Forward destination must be empty.
+     * - Double advance requires the starting rank and both squares empty.
+     * - Diagonal movement requires an enemy piece or valid en passant.
+     * - En passant must remove the adjacent enemy pawn when simulating.
+     * - Are we promoting if on last rank?
+     * @param move move to perform
+     * @param state current chess game state
+     * @return true if move is valid for pawn
+     */
+    private static boolean validPawnMove(ChessGameState state, ChessMove move) {
+        int from = move.getFrom();
+        int to = move.getTo();
+        ChessPiece targetPiece = state.getBoard()[to];
+        boolean isWhite = state.isWhiteTurn();
+
+        // are we promoting before reaching the last rank?
+        if (to / 8 != (isWhite ? 7 : 0)
+                && move.getPromotionPieceClass().isPresent()) {
+            return false;
+        }
+
+        // Are we promoting if on last rank?
+        if (to / 8 == (isWhite ? 7 : 0) && move.getPromotionPieceClass().isEmpty()) {
+            return false;
+        }
+
+        // are moving forward? file is same, rank is different (idx%8=file, idx/8=rank)
+        if (from % 8 == to % 8 && from / 8 != to / 8) {
+            // if moving forward one place, cannot have piece there
+            if (targetPiece != null) {
+                return false;
+            }
+
+            // if we're moving two places, we must be in second rows
+            if (Math.abs(to - from) == 16) {
+                // if white cannot have piece in middle and not doing this from second rank
+                if (isWhite && (from / 8 != 1 || state.getBoard()[to-8] != null)) {
+                    return false;
+                }
+                // if black, cannot have piece in middle and not doing this from first rank
+                if (!isWhite && (from / 8 != 6 || state.getBoard()[to+8] != null)) {
+                    return false;
+                }
+            }
+        }
+        // ok, so we're moving diagonally
+        else {
+            // diagonal movement requires an enemy piece or valid en passant
+            if (targetPiece != null) {
+                // ordinary capture: target must belong to the opponent
+                if (targetPiece.isWhite() == isWhite) {
+                    return false;
+                }
+            } else {
+                // empty destination: it must match the current en passant target
+                String enPassantSquare = state.getEnPassantSquare();
+
+                if (enPassantSquare == null
+                        || !enPassantSquare.equals(ChessMove.indexToSquareString(to))) {
+                    return false;
+                }
+
+                // white captures en passant from rank 5, black from rank 4
+                int requiredRank = isWhite ? 4 : 3;
+                if (from / 8 != requiredRank) {
+                    return false;
+                }
+
+                // the captured pawn is behind the destination square
+                int capturedPawnIndex = isWhite ? to - 8 : to + 8;
+                ChessPiece capturedPiece = state.getBoard()[capturedPawnIndex];
+
+                // there must actually be an enemy pawn there
+                if (!(capturedPiece instanceof PawnPiece) || capturedPiece.isWhite() == isWhite) {
+                    return false;
+                }
+            }
+        }
+
+        // no issues found
+        return true;
+    }
+
+    /**
+     * Is the path between the two squares clear?
+     * Pawns, bishops, rooks, and queens cannot jump over pieces. Knights can.
+     * @param state current chess game state
+     * @param move move to check
+     * @return true if path is clear
+     */
+    private static boolean isPathClear(ChessGameState state, ChessMove move) {
+        // TODO
+        return false;
+    }
 }
