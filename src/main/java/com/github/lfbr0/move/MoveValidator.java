@@ -162,6 +162,27 @@ public class MoveValidator {
         return true;
     }
 
+    /**
+     * Checks whether the side to move is in check.
+     * @param state current game state
+     * @return true if the current side's king is attacked
+     */
+    public static boolean isInCheck(GameState state) {
+        if (state == null) {
+            throw new IllegalArgumentException("State cannot be null");
+        }
+
+        boolean isWhite = state.isWhiteTurn();
+        int kingIndex = findKing(state, isWhite);
+
+        // a missing king means the position is invalid
+        if (kingIndex < 0) {
+            throw new IllegalArgumentException("Side to move has no king");
+        }
+
+        // is our king attacked by the opponent?
+        return isSquareAttacked(state, kingIndex, !isWhite);
+    }
 
     /**
      * UTILITIES - Auxiliary methods
