@@ -30,6 +30,10 @@ public class MoveValidator {
      * @return set of all legal moves
      */
     public static Set<Move> getLegalMoves(GameState state) {
+        if (state == null) {
+            throw new IllegalArgumentException("State cannot be null");
+        }
+
         return IntStream
                 .range(0, 64) // for all indices, check all pieces
                 .filter(idx -> {
@@ -85,8 +89,12 @@ public class MoveValidator {
             return false;
         }
 
-        Piece movingPiece = state.getPieceAtIndex(move.getFrom());
+        // are we moving nowhere?
+        if (move.getFrom() == move.getTo()) {
+            return false;
+        }
 
+        Piece movingPiece = state.getPieceAtIndex(move.getFrom());
         // does it point to an empty square?
         if (movingPiece == null) {
             return false;
