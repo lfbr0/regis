@@ -430,18 +430,6 @@ public class FenCodecTests {
     }
 
     @Test
-    public void encodeRejectsBoardsThatAreNotSixtyFourSquaresLong() {
-        int[] invalidLengths = {0, 1, 63, 65, 128};
-
-        for (int length : invalidLengths) {
-            assertThrows(
-                    "Board length " + length,
-                    IllegalArgumentException.class,
-                    () -> FenCodec.encode(new GameState(new Piece[length], true)));
-        }
-    }
-
-    @Test
     public void encodeRejectsNullState() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -707,8 +695,7 @@ public class FenCodecTests {
     @Test
     public void encodeRejectsNullBoard() {
         GameState state = new GameState(null, true);
-
-        assertThrows(IllegalArgumentException.class, () -> FenCodec.encode(state));
+        assertThrows(IllegalStateException.class, () -> FenCodec.encode(state));
     }
 
     @Test

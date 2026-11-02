@@ -70,6 +70,9 @@ public class GameState {
      * @return copy of the board
      */
     public Piece[] getBoardCopy() {
+        if (board == null) {
+            throw new IllegalStateException("Board is null");
+        }
         return Arrays.copyOf(board, 64);
     }
 

@@ -82,7 +82,7 @@ public class MoveValidatorTests {
 
     @Test
     public void whitePawnCapturesBothDiagonals() {
-        GameState state = position(true, "-", null, "Ka1", "kh8", "Pd4", "nc5", "be5");
+        GameState state = position(true, "-", null, "Ka2", "kh8", "Pd4", "nc5", "be5");
         assertMovesFrom(state, "d4", "d4d5", "d4c5", "d4e5");
     }
 

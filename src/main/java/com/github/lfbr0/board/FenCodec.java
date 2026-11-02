@@ -45,8 +45,10 @@ public class FenCodec {
             throw new IllegalArgumentException("Fullmove number must be at least 1");
         }
 
+        Piece[] boardCopy = state.getBoardCopy();
+
         return new StringBuilder()
-                .append(encodeBoard(state.getBoardCopy())) // actual board encoding
+                .append(encodeBoard(boardCopy)) // actual board encoding
                 .append(' ').append(state.isWhiteTurn() ? 'w' : 'b')
                 .append(' ').append(castling.isEmpty() ? "-" : castling.toString())
                 .append(' ').append(enPassant == null ? "-" : enPassant)

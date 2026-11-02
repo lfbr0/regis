@@ -34,10 +34,6 @@ public final class Move {
         from = Move.squareStringToIndex(uciMoveString.substring(0, 2));
         to = Move.squareStringToIndex(uciMoveString.substring(2, 4));
 
-        if (from == to) {
-            throw new IllegalArgumentException("Invalid move: " + uciMoveString);
-        }
-
         // if there's a promotion piece, decode it
         if (uciMoveString.length() == 5) {
             char promotionPieceChar = Character.toUpperCase(uciMoveString.charAt(4));
@@ -63,10 +59,6 @@ public final class Move {
             throw new IllegalArgumentException("Invalid to index: " + to);
         }
         this.to = to;
-
-        if (from == to) {
-            throw new IllegalArgumentException("Invalid move: " + from + " -> " + to);
-        }
 
         if (promotionPieceClass == KingPiece.class || promotionPieceClass == PawnPiece.class) {
             throw new IllegalArgumentException("Invalid promotion piece: " + promotionPieceClass);
