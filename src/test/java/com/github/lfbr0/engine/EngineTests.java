@@ -311,7 +311,7 @@ public class EngineTests {
         GameState state = startingPosition();
 
         EngineMove[] results =
-                Engine.bestMoves(state, 5, 10, 1);
+                new Engine().bestMoves(state, 5, 10, 1);
 
         // no evaluator may finish before this deadline
         assertTrue(results.length <= 5);
@@ -358,7 +358,7 @@ public class EngineTests {
 
     @Test
     public void timeoutDoesNotStopFollowingSearch() {
-        Engine.bestMoves(startingPosition(), 5, 10, 1);
+        new Engine().bestMoves(startingPosition(), 5, 10, 1);
 
         assertCapture(false,
                 "7k/8/8/8/8/8/q7/R6K w - - 0 1",
@@ -422,50 +422,50 @@ public class EngineTests {
     @Test
     public void rejectsNullState() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(null, 1, 1, 1_000));
+                () -> new Engine().bestMoves(null, 1, 1, 1_000));
     }
 
     @Test
     public void rejectsNegativeCount() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(startingPosition(), -1, 1, 1_000));
+                () -> new Engine().bestMoves(startingPosition(), -1, 1, 1_000));
     }
 
     @Test
     public void rejectsZeroDepth() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(startingPosition(), 1, 0, 1_000));
+                () -> new Engine().bestMoves(startingPosition(), 1, 0, 1_000));
     }
 
     @Test
     public void rejectsNegativeDepth() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(startingPosition(), 1, -1, 1_000));
+                () -> new Engine().bestMoves(startingPosition(), 1, -1, 1_000));
     }
 
     @Test
     public void rejectsZeroTimeout() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(startingPosition(), 1, 1, 0));
+                () -> new Engine().bestMoves(startingPosition(), 1, 1, 0));
     }
 
     @Test
     public void rejectsNegativeTimeout() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(startingPosition(), 1, 1, -1));
+                () -> new Engine().bestMoves(startingPosition(), 1, 1, -1));
     }
 
     @Test
     public void rejectsOverflowingTimeout() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.bestMoves(
+                () -> new Engine().bestMoves(
                         startingPosition(), 1, 1, Long.MAX_VALUE));
     }
 
     @Test
     public void evaluationRejectsNullState() {
         assertThrows(IllegalArgumentException.class,
-                () -> Engine.evaluate(null, true));
+                () -> new Engine().evaluate(null, true));
     }
 
     // utilities below
@@ -485,7 +485,7 @@ public class EngineTests {
             int count,
             int depth) {
 
-        return Engine.bestMoves(
+        return new Engine().bestMoves(
                 state, count, depth, SEARCH_TIMEOUT_MILLIS);
     }
 

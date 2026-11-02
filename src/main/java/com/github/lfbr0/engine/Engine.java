@@ -10,10 +10,12 @@ import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.KingPiece;
 import com.github.lfbr0.move.MoveValidator;
+import lombok.AllArgsConstructor;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 import static java.lang.Runtime.getRuntime;
 import static java.util.concurrent.Executors.newFixedThreadPool;
@@ -24,16 +26,22 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
  * - best N moves
  * - evaluation of board
  */
+
+@AllArgsConstructor
 public class Engine {
 
-    private static final ExecutorService ENGINE_EXECUTOR_SERVICE = newFixedThreadPool(getRuntime().availableProcessors());
+    private final ExecutorService executorService;
+
+    public Engine() {
+        executorService = newFixedThreadPool(getRuntime().availableProcessors());
+    }
 
     /**
      * Evaluates legal moves concurrently, sharing one deadline.
      * Stops early when a root move proves a forced checkmate.
      * @return completed evaluations, best first; possibly fewer than count
      */
-    public static EngineMove[] bestMoves(GameState state, int count, int depth, long timeoutMillis) {
+    public EngineMove[] bestMoves(GameState state, int count, int depth, long timeoutMillis) {
 
         if (state == null || count < 0 || depth < 1 || timeoutMillis <= 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
             throw new IllegalArgumentException("Invalid search arguments");
@@ -47,9 +55,19 @@ public class Engine {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
         AtomicBoolean mateFound = new AtomicBoolean(false);
 
+        // evaluation function is shared by all evaluators
+        BiFunction<GameState, Boolean, Double> evalFunction = this::evaluate;
+
         List<EngineMoveEvaluator> tasks = MoveValidator.getLegalMoves(state)
                 .stream()
-                .map(move -> new EngineMoveEvaluator(state, move, depth, deadline, mateFound))
+                .map(move -> new EngineMoveEvaluator(
+                        state,
+                        move,
+                        depth,
+                        deadline,
+                        mateFound,
+                        evalFunction
+                ))
                 .toList();
 
         List<EngineMove> results = new ArrayList<>();
@@ -58,7 +76,7 @@ public class Engine {
             // move generation already consumed part of our time budget
             long remainingNanos = Math.max(0, deadline - System.nanoTime());
 
-            List<Future<Optional<EngineMove>>> futures = ENGINE_EXECUTOR_SERVICE.invokeAll(
+            List<Future<Optional<EngineMove>>> futures = executorService.invokeAll(
                     tasks,
                     remainingNanos,
                     TimeUnit.MILLISECONDS
@@ -82,19 +100,12 @@ public class Engine {
     }
 
     /**
-     * Call when the application no longer needs the engine.
-     */
-    public static void shutdown() {
-        ENGINE_EXECUTOR_SERVICE.shutdownNow();
-    }
-
-    /**
      * Evaluates the board state and returns a score.
      * @param state current game state
      * @param playerIsWhite true if the player is white, false otherwise
      * @return
      */
-    public static double evaluate(GameState state, boolean playerIsWhite) {
+    public double evaluate(GameState state, boolean playerIsWhite) {
         if (state == null) {
             throw new IllegalArgumentException("Chess game state cannot be null");
         }

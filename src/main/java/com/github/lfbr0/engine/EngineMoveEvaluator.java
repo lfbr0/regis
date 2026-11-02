@@ -17,8 +17,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.github.lfbr0.engine.Engine.evaluate;
+import java.util.function.BiFunction;
 
 /**
  * Evaluates one root move and its continuations. Actually performs the evaluation.
@@ -35,6 +34,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
     private final int depth;
     private final long deadline;
     private final AtomicBoolean mateFound;
+    private final BiFunction<GameState, Boolean, Double> evaluationFunction; // game state, is white -> result
 
     @Override
     public Optional<EngineMove> call() throws Exception {
@@ -66,8 +66,14 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
      * @return evaluation score
      */
     private double evaluateDepth(GameState currentState, boolean playerIsWhite, int remainingDepth) {
+        // check cancellation before exploring this position
+        shouldStopSearch();
+
         // otherwise, get all legal moves and evaluate them, always assume best moves
         Set<Move> allLegalMoves = MoveValidator.getLegalMoves(currentState);
+
+        // generating moves may have consumed the remaining time
+        shouldStopSearch();
 
         // are we out of moves? possible checkmate or stalemate
         if (allLegalMoves.isEmpty()) {
@@ -84,7 +90,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
         // we have no more depth to explore, so just evaluate the board
         if (remainingDepth == 0) {
-            return evaluate(currentState, playerIsWhite);
+            return evaluationFunction.apply(currentState, playerIsWhite);
         }
 
         // we must maximize our score, and the opponent must minimize it
@@ -92,6 +98,9 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
         double bestScore = playersTurn ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
 
         for (Move move : allLegalMoves) {
+            // generating moves may have consumed the remaining time
+            shouldStopSearch();
+
             GameState nextState = MoveHandler.applyMove(currentState, move);
             double evaluation = evaluateDepth(nextState, playerIsWhite, remainingDepth - 1);
 
@@ -108,7 +117,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
      * Stops search if mate found or deadline reached.
      */
     private void shouldStopSearch() {
-        if (mateFound.get() || Thread.currentThread().isInterrupted() || System.nanoTime() - deadline >= 0) {
+        if (Thread.currentThread().isInterrupted() || mateFound.get() || System.nanoTime() - deadline >= 0) {
             throw new CancellationException("Evaluation stopped");
         }
     }
