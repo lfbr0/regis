@@ -112,9 +112,6 @@ public class ChessMoveValidator {
             return false;
         }
 
-        // bishops, rooks, and queens cannot jump over pieces. Knights can. - path is clear?
-        // TODO
-
         /**
          * Pawn rules:
          * - Forward destination must be empty.
@@ -122,6 +119,9 @@ public class ChessMoveValidator {
          * - Diagonal movement requires an enemy piece or valid en passant.
          * - En passant must remove the adjacent enemy pawn when simulating.
          */
+        // TODO
+
+        // bishops, rooks, and queens cannot jump over pieces. Knights can. - path is clear?
         // TODO
 
         // required when a pawn reaches the last rank; forbidden otherwise and for other pieces.
@@ -146,7 +146,6 @@ public class ChessMoveValidator {
      * @return true if move has valid geometry
      */
     private static boolean validGeometry(ChessPiece movingPiece, int from, int to) {
-        boolean whiteToMove = movingPiece.isWhite();
         int offset = to - from;
 
         // rule to remember: idx % 8 = file
@@ -188,7 +187,47 @@ public class ChessMoveValidator {
             }
         }
         else if (movingPiece instanceof BishopPiece) {
-            //TODO
+            // file goes from 0 (a) to 7 (h)
+            int originFile = from % 8;
+            // how many squares can we move before crossing either side?
+            int filesToLeft = originFile;
+            int filesToRight = 7 - originFile;
+
+            // moving upward right: each diagonal step adds 9 to the index
+            if (offset > 0 && offset % 9 == 0 && offset / 9 <= 7) {
+                int steps = offset / 9;
+                // would we cross the right edge?
+                if (steps > filesToRight) {
+                    return false;
+                }
+            }
+
+            // moving upward left: each diagonal step adds 7 to the index
+            if (offset > 0 && offset % 7 == 0 && offset / 7 <= 7) {
+                int steps = offset / 7;
+                // would we cross the left edge?
+                if (steps > filesToLeft) {
+                    return false;
+                }
+            }
+
+            // moving downward right: each diagonal step subtracts 7 from the index
+            if (offset < 0 && offset % -7 == 0 && offset / -7 <= 7) {
+                int steps = offset / -7;
+                // would we cross the right edge?
+                if (steps > filesToRight) {
+                    return false;
+                }
+            }
+
+            // moving downward left: each diagonal step subtracts 9 from the index
+            if (offset < 0 && offset % -9 == 0 && offset / -9 <= 7) {
+                int steps = offset / -9;
+                // would we cross the left edge?
+                if (steps > filesToLeft) {
+                    return false;
+                }
+            }
         }
         else if (movingPiece instanceof RookPiece) {
             //TODO
@@ -196,9 +235,11 @@ public class ChessMoveValidator {
         else if (movingPiece instanceof QueenPiece) {
             //TODO
         }
-        // king move
+        else if (movingPiece instanceof KingPiece) {
+            //TODO
+        }
         else {
-
+            throw new IllegalArgumentException("Invalid piece type: " + movingPiece.getClass());
         }
 
         // no issues found
