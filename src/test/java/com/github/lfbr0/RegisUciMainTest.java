@@ -7,9 +7,9 @@ import org.junit.Test;
 /**
  * Unit test for simple App.
  */
-public class RegisMainTest {
+public class RegisUciMainTest {
     @Test
     public void loadsAppTest() {
-        assertNotNull(new RegisMain());
+        assertNotNull(new RegisUciMain());
     }
 }

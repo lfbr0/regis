@@ -9,7 +9,6 @@ package com.github.lfbr0.engine;
 import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.KingPiece;
-import com.github.lfbr0.move.Move;
 import com.github.lfbr0.move.MoveValidator;
 
 import java.util.*;
@@ -48,47 +47,32 @@ public class Engine {
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
         AtomicBoolean mateFound = new AtomicBoolean(false);
 
-        // each search gets its own completion queue
-        CompletionService<Optional<EngineMove>> completed = new ExecutorCompletionService<>(ENGINE_EXECUTOR_SERVICE);
+        List<EngineMoveEvaluator> tasks = MoveValidator.getLegalMoves(state)
+                .stream()
+                .map(move -> new EngineMoveEvaluator(state, move, depth, deadline, mateFound))
+                .toList();
 
-        List<Future<Optional<EngineMove>>> futures = new ArrayList<>();
         List<EngineMove> results = new ArrayList<>();
 
         try {
-            // for each legal move, evaluate it on parallel
-            for (Move move : MoveValidator.getLegalMoves(state)) {
-                if (System.nanoTime() - deadline >= 0) {
-                    break;
+            // move generation already consumed part of our time budget
+            long remainingNanos = Math.max(0, deadline - System.nanoTime());
+
+            List<Future<Optional<EngineMove>>> futures = ENGINE_EXECUTOR_SERVICE.invokeAll(
+                    tasks,
+                    remainingNanos,
+                    TimeUnit.MILLISECONDS
+            );
+
+            for (Future<Optional<EngineMove>> future : futures) {
+                if (future.isDone() && !future.isCancelled()) {
+                    future.get().ifPresent(results::add);
                 }
-
-                // boot up parallel evaluation for this move
-                futures.add(completed.submit(new EngineMoveEvaluator(state, move, depth, deadline, mateFound)));
-            }
-
-            for (int received = 0; received < futures.size(); received++) {
-                // if time has expired, still collect results already queued
-                long timeLeft = Math.max(0, deadline - System.nanoTime());
-
-                Future<Optional<EngineMove>> finished = completed.poll(timeLeft, TimeUnit.NANOSECONDS);
-
-                if (finished == null) {
-                    break;
-                }
-
-                // stopped evaluators don't provide a usable score
-                finished.get().ifPresent(results::add);
-
-                // don't break merely because mateFound is true:
-                // the evaluator with the mating move may still be publishing
-                // its result into the completion queue
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (ExecutionException e) {
             throw new IllegalStateException("Engine search failed", e.getCause());
-        } finally {
-            // stop any remaining work when collection ends
-            futures.forEach(future -> future.cancel(true));
         }
 
         return results.stream()
