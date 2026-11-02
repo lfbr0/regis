@@ -1,7 +1,8 @@
 package com.github.lfbr0.board;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.*;
+
+import java.util.Arrays;
 
 /**
  * @author Luís Filipe Ribeiro (lfbr0 @ Github)
@@ -12,27 +13,27 @@ import lombok.Data;
 /**
  * This represents the Chess Board and it's state
  */
-@Data
 @AllArgsConstructor
+@ToString
 public class ChessGameState {
 
     // 64 squares, read from bottom left to top right
     // so a1 = 0, a2 = 8, h1 = 7, h8 = 63
     private final ChessPiece[] board;
     // marks whose turn it is
-    private final boolean isWhiteTurn;
+    @Getter private final boolean isWhiteTurn;
     // castling rights
-    private final boolean whiteKingsideCastling;
-    private final boolean whiteQueensideCastling;
-    private final boolean blackKingsideCastling;
-    private final boolean blackQueensideCastling;
+    @Getter private final boolean whiteKingsideCastling;
+    @Getter private final boolean whiteQueensideCastling;
+    @Getter private final boolean blackKingsideCastling;
+    @Getter private final boolean blackQueensideCastling;
     // algebraic square, such as "e3", or null when absent
-    private final String enPassantSquare;
+    @Getter private final String enPassantSquare;
     // halfmove needed for the 50-move draw claim and automatic 75-move draw
     // counts individual turns since the last pawn move or capture; either resets to zero
-    private final int halfmoveClock;
+    @Getter private final int halfmoveClock;
     // records the number of full moves
-    private final int fullmoveNumber;
+    @Getter private final int fullmoveNumber;
 
 
     public ChessGameState(ChessPiece[] board, boolean isWhiteTurn) {
@@ -62,5 +63,22 @@ public class ChessGameState {
         this.enPassantSquare = state.getEnPassantSquare();
         this.halfmoveClock = state.getHalfmoveClock();
         this.fullmoveNumber = state.getFullmoveNumber();
+    }
+
+    /**
+     * Returns a copy of the board.
+     * @return copy of the board
+     */
+    public ChessPiece[] getBoardCopy() {
+        return Arrays.copyOf(board, 64);
+    }
+
+    /**
+     * Returns the piece at the given index.
+     * @param idx Index of the piece to return
+     * @return Piece at the given index
+     */
+    public ChessPiece getPieceAtIndex(int idx) {
+        return board[idx];
     }
 }
