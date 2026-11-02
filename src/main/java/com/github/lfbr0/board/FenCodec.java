@@ -26,10 +26,10 @@ public class FenCodec {
 
         // castling rights
         StringBuilder castling = new StringBuilder();
-        if (state.isWhiteKingsideCastling()) castling.append('K');
-        if (state.isWhiteQueensideCastling()) castling.append('Q');
-        if (state.isBlackKingsideCastling()) castling.append('k');
-        if (state.isBlackQueensideCastling()) castling.append('q');
+        if (state.isWhiteKingsideCastlingAllowed()) castling.append('K');
+        if (state.isWhiteQueensideCastlingAllowed()) castling.append('Q');
+        if (state.isBlackKingsideCastlingAllowed()) castling.append('k');
+        if (state.isBlackQueensideCastlingAllowed()) castling.append('q');
 
         // en passant square
         String enPassant = state.getEnPassantSquare();

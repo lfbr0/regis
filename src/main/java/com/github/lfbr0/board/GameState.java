@@ -23,10 +23,10 @@ public class GameState {
     // marks whose turn it is
     @Getter private final boolean isWhiteTurn;
     // castling rights
-    @Getter private final boolean whiteKingsideCastling;
-    @Getter private final boolean whiteQueensideCastling;
-    @Getter private final boolean blackKingsideCastling;
-    @Getter private final boolean blackQueensideCastling;
+    @Getter private final boolean whiteKingsideCastlingAllowed;
+    @Getter private final boolean whiteQueensideCastlingAllowed;
+    @Getter private final boolean blackKingsideCastlingAllowed;
+    @Getter private final boolean blackQueensideCastlingAllowed;
     // algebraic square, such as "e3", or null when absent
     @Getter private final String enPassantSquare;
     // halfmove needed for the 50-move draw claim and automatic 75-move draw
@@ -39,10 +39,10 @@ public class GameState {
     public GameState(Piece[] board, boolean isWhiteTurn) {
         this.board = board;
         this.isWhiteTurn = isWhiteTurn;
-        this.whiteKingsideCastling = false;
-        this.whiteQueensideCastling = false;
-        this.blackKingsideCastling = false;
-        this.blackQueensideCastling = false;
+        this.whiteKingsideCastlingAllowed = false;
+        this.whiteQueensideCastlingAllowed = false;
+        this.blackKingsideCastlingAllowed = false;
+        this.blackQueensideCastlingAllowed = false;
         this.enPassantSquare = null;
         this.halfmoveClock = 0;
         this.fullmoveNumber = 1;
@@ -56,10 +56,10 @@ public class GameState {
         GameState state = FenCodec.decode(fenString);
         this.board = state.getBoardCopy();
         this.isWhiteTurn = state.isWhiteTurn();
-        this.whiteKingsideCastling = state.isWhiteKingsideCastling();
-        this.whiteQueensideCastling = state.isWhiteQueensideCastling();
-        this.blackKingsideCastling = state.isBlackKingsideCastling();
-        this.blackQueensideCastling = state.isBlackQueensideCastling();
+        this.whiteKingsideCastlingAllowed = state.isWhiteKingsideCastlingAllowed();
+        this.whiteQueensideCastlingAllowed = state.isWhiteQueensideCastlingAllowed();
+        this.blackKingsideCastlingAllowed = state.isBlackKingsideCastlingAllowed();
+        this.blackQueensideCastlingAllowed = state.isBlackQueensideCastlingAllowed();
         this.enPassantSquare = state.getEnPassantSquare();
         this.halfmoveClock = state.getHalfmoveClock();
         this.fullmoveNumber = state.getFullmoveNumber();

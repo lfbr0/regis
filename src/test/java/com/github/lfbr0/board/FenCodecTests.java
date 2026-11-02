@@ -747,10 +747,10 @@ public class FenCodecTests {
 
     private static void assertCastling(
             GameState state, boolean wk, boolean wq, boolean bk, boolean bq) {
-        assertEquals("White kingside", wk, state.isWhiteKingsideCastling());
-        assertEquals("White queenside", wq, state.isWhiteQueensideCastling());
-        assertEquals("Black kingside", bk, state.isBlackKingsideCastling());
-        assertEquals("Black queenside", bq, state.isBlackQueensideCastling());
+        assertEquals("White kingside", wk, state.isWhiteKingsideCastlingAllowed());
+        assertEquals("White queenside", wq, state.isWhiteQueensideCastlingAllowed());
+        assertEquals("Black kingside", bk, state.isBlackKingsideCastlingAllowed());
+        assertEquals("Black queenside", bq, state.isBlackQueensideCastlingAllowed());
     }
 
     private static String castlingToken(boolean wk, boolean wq, boolean bk, boolean bq) {

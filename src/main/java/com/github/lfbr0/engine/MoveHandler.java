@@ -31,7 +31,7 @@ public class MoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    public GameState applyMove(GameState state, Move move) {
+    public static GameState applyMove(GameState state, Move move) {
         if (state == null || move == null) {
             throw new IllegalArgumentException("Invalid arguments, null passed to applyMove!");
         }
@@ -54,21 +54,75 @@ public class MoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    private GameState applyPieceMove(GameState state, Move move) {
+    private static GameState applyPieceMove(GameState state, Move move) {
         Piece movingPiece = state.getPieceAtIndex(move.getFrom());
+        Piece capturedPiece = state.getPieceAtIndex(move.getTo());
         Piece[] newBoard = state.getBoardCopy(); // it already returns new copy
 
         // capture or move
         newBoard[move.getTo()] = movingPiece;
+        newBoard[move.getFrom()] = null;
         // change turn to next side
-        boolean isWhiteTurn = !state.isWhiteTurn();
+        boolean isWhiteTurn = state.isWhiteTurn();
+
+        // castling vars
+        boolean whiteKingsideCastlingAllowed = state.isWhiteKingsideCastlingAllowed();
+        boolean whiteQueensideCastlingAllowed = state.isWhiteQueensideCastlingAllowed();
+        boolean blackKingsideCastlingAllowed = state.isBlackKingsideCastlingAllowed();
+        boolean blackQueensideCastlingAllowed = state.isBlackQueensideCastlingAllowed();
 
         // did we move a rook and had castle?
         if (movingPiece instanceof RookPiece) {
-            // TODO
+            // disable castling for white king side
+            if (isWhiteTurn) {
+                if (move.getFrom() == 0 && whiteQueensideCastlingAllowed) {
+                    whiteQueensideCastlingAllowed = false;
+                }
+                if (move.getFrom() == 7 && whiteKingsideCastlingAllowed) {
+                    whiteKingsideCastlingAllowed = false;
+                }
+            }
+            // disable castling for black king side
+            else {
+                if (move.getFrom() == 56 && blackQueensideCastlingAllowed) {
+                    blackQueensideCastlingAllowed = false;
+                }
+                if (move.getFrom() == 63 && blackKingsideCastlingAllowed) {
+                    blackKingsideCastlingAllowed = false;
+                }
+            }
         }
 
-        return null; // TODO
+        // did we capture a rook on its starting square?
+        if (capturedPiece instanceof RookPiece) {
+            if (capturedPiece.isWhite()) {
+                if (move.getTo() == 0) {
+                    whiteQueensideCastlingAllowed = false;
+                }
+                if (move.getTo() == 7) {
+                    whiteKingsideCastlingAllowed = false;
+                }
+            } else {
+                if (move.getTo() == 56) {
+                    blackQueensideCastlingAllowed = false;
+                }
+                if (move.getTo() == 63) {
+                    blackKingsideCastlingAllowed = false;
+                }
+            }
+        }
+
+        return new GameState(
+                newBoard,
+                !isWhiteTurn,
+                whiteKingsideCastlingAllowed,
+                whiteQueensideCastlingAllowed,
+                blackKingsideCastlingAllowed,
+                blackQueensideCastlingAllowed,
+                null, // no en passant movement done
+                capturedPiece != null ? 0 : state.getHalfmoveClock() + 1,
+                state.getFullmoveNumber() + (isWhiteTurn ? 0 : 1)
+        );
     }
 
     /**
@@ -77,8 +131,65 @@ public class MoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    private GameState applyKingMove(GameState state, Move move) {
-        return null; // TODO
+    private static GameState applyKingMove(GameState state, Move move) {
+        Piece[] newBoard = state.getBoardCopy();
+
+        // castling vars
+        boolean whiteKingsideCastlingAllowed = state.isWhiteKingsideCastlingAllowed();
+        boolean whiteQueensideCastlingAllowed = state.isWhiteQueensideCastlingAllowed();
+        boolean blackKingsideCastlingAllowed = state.isBlackKingsideCastlingAllowed();
+        boolean blackQueensideCastlingAllowed = state.isBlackQueensideCastlingAllowed();
+
+        // check if castling move, and if so, move rook only (king will be moved by applyPieceMove)
+        // white castle queenside
+        if (state.isWhiteTurn() && move.getFrom() == 4 && move.getTo() == 2) {
+            // move rook
+            newBoard[3] = newBoard[0];
+            newBoard[0] = null;
+        }
+        // white castle kingside
+        else if (state.isWhiteTurn() && move.getFrom() == 4 && move.getTo() == 6) {
+            // move rook
+            newBoard[5] = newBoard[7];
+            newBoard[7] = null;
+        }
+        // black castle queenside
+        else if (!state.isWhiteTurn() && move.getFrom() == 60 && move.getTo() == 58) {
+            // move rook
+            newBoard[59] = newBoard[56];
+            newBoard[56] = null;
+        }
+        // black castle kingside
+        else if (!state.isWhiteTurn() && move.getFrom() == 60 && move.getTo() == 62) {
+            // move rook
+            newBoard[61] = newBoard[63];
+            newBoard[63] = null;
+        }
+
+        // any king move permanently removes both castling rights for its side
+        if (state.isWhiteTurn()) {
+            whiteKingsideCastlingAllowed = false;
+            whiteQueensideCastlingAllowed = false;
+        } else {
+            blackKingsideCastlingAllowed = false;
+            blackQueensideCastlingAllowed = false;
+        }
+
+        // new state with new position of rooks if necessary
+        GameState newState = new GameState(
+                newBoard,
+                state.isWhiteTurn(),
+                whiteKingsideCastlingAllowed,
+                whiteQueensideCastlingAllowed,
+                blackKingsideCastlingAllowed,
+                blackQueensideCastlingAllowed,
+                state.getEnPassantSquare(),
+                state.getHalfmoveClock(), // TODO: is it right?
+                state.getFullmoveNumber() // TODO: is it right?
+        );
+
+        // still move king
+        return applyPieceMove(newState, move);
     }
 
     /**
@@ -88,7 +199,7 @@ public class MoveHandler {
      * @param move
      * @return
      */
-    private GameState applyPawnMove(GameState state, Move move) {
+    private static GameState applyPawnMove(GameState state, Move move) {
         return null; // TODO
     }
 
