@@ -231,7 +231,27 @@ public class ChessMoveValidator {
             }
         }
         else if (movingPiece instanceof RookPiece) {
-            //TODO
+            // file goes from 0 (a) to 7 (h)
+            int originFile = from % 8;
+            // how many squares can we move before crossing either side?
+            int filesToLeft = originFile;
+            int filesToRight = 7 - originFile;
+
+            boolean sameRank = from / 8 == to / 8;
+            boolean sameFile = originFile == to % 8;
+
+            // are we moving outside of rank and outside of file? (diagonally)
+            if (!sameRank && !sameFile) {
+                return false;
+            }
+            // are we moving left? and more than we can?
+            if (sameRank && offset < 0 && Math.abs(offset) > filesToLeft) {
+                return false;
+            }
+            // are we moving right? and moving more than we can?
+            else if (sameRank && offset > 0 && Math.abs(offset) > filesToRight) {
+                return false;
+            }
         }
         else if (movingPiece instanceof QueenPiece) {
             //TODO
