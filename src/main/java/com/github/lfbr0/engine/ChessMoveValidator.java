@@ -108,9 +108,11 @@ public class ChessMoveValidator {
         }
 
         // check file/rank differences. An allowed offset alone can wrap across board edges.
-        // TODO
+        if (!validGeometry(movingPiece, move.getFrom(), move.getTo())) {
+            return false;
+        }
 
-        // bishops, rooks, and queens cannot jump over pieces. Knights can.
+        // bishops, rooks, and queens cannot jump over pieces. Knights can. - path is clear?
         // TODO
 
         /**
@@ -132,6 +134,74 @@ public class ChessMoveValidator {
         // simulate move, then reject it if king is checked - board is copied to not alter state
         // TODO
 
+        return true;
+    }
+
+    /**
+     * This checks if the move is valid for the piece and has the right geometry.
+     * For example, h1 and a2 are one offset away, you cannot wrap around the board.
+     * @param movingPiece moving piece
+     * @param from starting square
+     * @param to ending square
+     * @return true if move has valid geometry
+     */
+    private static boolean validGeometry(ChessPiece movingPiece, int from, int to) {
+        boolean whiteToMove = movingPiece.isWhite();
+        int offset = to - from;
+
+        // rule to remember: idx % 8 = file
+
+        if (movingPiece instanceof PawnPiece) {
+            // if on first file, cannot move left since destination wraps around
+            if (from % 8 == 0 && to % 8 == 7) {
+                return false;
+            }
+            // if on last file, cannot move right wraps around
+            if (from % 8 == 7 && to % 8 == 0) {
+                return false;
+            }
+        }
+        else if (movingPiece instanceof KnightPiece) {
+            // cannot move out side the board to left if not at least 2 squares away
+            if ((offset == 6 || offset == -10) && from % 8 < 2) {
+                return false;
+            }
+            // cannot move out side the board to right if not at least 2 squares away
+            if ((offset == -6 || offset == 10) && from % 8 > 5) {
+                return false;
+            }
+            // cannot move out right side the board to top if not at least 2 square away
+            if (offset == 17 && (from > 46 || from % 8 > 6)) { // idx 46 = g6
+                return false;
+            }
+            // cannot move out left side the board to bottom if not at least 2 square away
+            if (offset == 15 && (from % 8 < 1 || from > 47)) { // idx 47 = h6
+                return false;
+            }
+            // cannot move out right side the board to bottom if not at least 2 square away
+            if (offset == -15 && (from % 8 > 6 || from < 16)) { // idx 16 = a3
+                return false;
+            }
+            // cannot move out left side the board to bottom if not at least 2 squares away
+            if (offset == -17 && (from % 8 < 1 || from < 17)) { // idx 17 = b3
+                return false;
+            }
+        }
+        else if (movingPiece instanceof BishopPiece) {
+            //TODO
+        }
+        else if (movingPiece instanceof RookPiece) {
+            //TODO
+        }
+        else if (movingPiece instanceof QueenPiece) {
+            //TODO
+        }
+        // king move
+        else {
+
+        }
+
+        // no issues found
         return true;
     }
 
