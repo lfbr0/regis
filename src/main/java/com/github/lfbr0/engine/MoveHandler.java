@@ -184,8 +184,8 @@ public class MoveHandler {
                 blackKingsideCastlingAllowed,
                 blackQueensideCastlingAllowed,
                 state.getEnPassantSquare(),
-                state.getHalfmoveClock(), // TODO: is it right?
-                state.getFullmoveNumber() // TODO: is it right?
+                state.getHalfmoveClock(),
+                state.getFullmoveNumber()
         );
 
         // still move king
