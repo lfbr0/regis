@@ -254,7 +254,21 @@ public class ChessMoveValidator {
             }
         }
         else if (movingPiece instanceof QueenPiece) {
-            //TODO
+            boolean sameRank = from / 8 == to / 8;
+            boolean sameFile = from % 8 == to % 8;
+
+            // queens can move horizontally or vertically, like rooks
+            if (sameRank || sameFile) {
+                return true;
+            }
+
+            // otherwise, must move diagonally, like bishops
+            int filesMoved = Math.abs(to % 8 - from % 8);
+            int ranksMoved = Math.abs(to / 8 - from / 8);
+
+            if (filesMoved != ranksMoved) {
+                return false;
+            }
         }
         else if (movingPiece instanceof KingPiece) {
             // cannot go left on first file
