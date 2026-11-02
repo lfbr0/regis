@@ -72,9 +72,16 @@ public class MoveValidator {
      * @return true if legal move
      */
     public static boolean isLegalMove(GameState state, Move move) {
+        if (state == null) {
+            throw new IllegalArgumentException("State cannot be null");
+        } else if (move == null) {
+            throw new IllegalArgumentException("Move cannot be null");
+        }
 
         // is it inside the board?
         if (move.getFrom() < 0 || move.getFrom() >= 64) {
+            return false;
+        } else if (move.getTo() < 0 || move.getTo() >= 64) {
             return false;
         }
 
@@ -129,10 +136,20 @@ public class MoveValidator {
 
         // requires the correct right, king and rook on their starting squares, and an empty path.
         // the king cannot start in, pass through, or land in check.
-        // TODO
+        boolean castling = movingPiece instanceof KingPiece && Math.abs(move.getTo() - move.getFrom()) == 2;
+        if (castling && !validCastling(state, move)) {
+            return false;
+        }
 
         // simulate move, then reject it if king is checked - board is copied to not alter state
-        // TODO
+        boolean movingSideIsWhite = state.isWhiteTurn();
+        GameState movedState = MoveHandler.applyMove(state, move);
+
+        int kingIndex = findKing(movedState, movingSideIsWhite);
+
+        if (kingIndex < 0 || isSquareAttacked(movedState, kingIndex, !movingSideIsWhite)) {
+            return false;
+        }
 
         return true;
     }
@@ -155,7 +172,7 @@ public class MoveValidator {
         int offset = to - from;
 
         // rule to remember: idx % 8 = file
-        // rule to remember: idx / 8 = rank because 0/8 = 0, 1/8 = 1, 16/8 = 2, etc.
+        // rule to remember: idx / 8 = rank because 0/8 = 0, 8/8 = 1, 16/8 = 2, etc.
 
         if (movingPiece instanceof PawnPiece) {
             // if on first file, cannot move left since destination wraps around
@@ -502,5 +519,172 @@ public class MoveValidator {
 
         // no issues found, path is clear
         return true;
+    }
+
+    /**
+     * Checks castling rights, rook presence, empty path, and king safety.
+     * @param state current game state
+     * @param move candidate castling move
+     * @return true if castling is allowed
+     */
+    private static boolean validCastling(GameState state, Move move) {
+        boolean isWhite = state.isWhiteTurn();
+        int from = move.getFrom();
+        int to = move.getTo();
+
+        // king must start at e1 or e8
+        int kingStart = isWhite ? 4 : 60;
+
+        if (from != kingStart) {
+            return false;
+        }
+
+        // king must move two files on the same rank
+        if (from / 8 != to / 8 || Math.abs(to - from) != 2) {
+            return false;
+        }
+
+        boolean kingside = to > from;
+
+        // do we still have the right to castle in this direction?
+        boolean castlingAllowed;
+
+        if (isWhite) {
+            castlingAllowed = kingside
+                    ? state.isWhiteKingsideCastlingAllowed()
+                    : state.isWhiteQueensideCastlingAllowed();
+        } else {
+            castlingAllowed = kingside
+                    ? state.isBlackKingsideCastlingAllowed()
+                    : state.isBlackQueensideCastlingAllowed();
+        }
+
+        if (!castlingAllowed) {
+            return false;
+        }
+
+        // the rook must be on its starting square and belong to us
+        int rookIndex = kingStart + (kingside ? 3 : -4);
+        Piece rook = state.getPieceAtIndex(rookIndex);
+
+        if (!(rook instanceof RookPiece) || rook.isWhite() != isWhite) {
+            return false;
+        }
+
+        // all squares between king and rook must be empty
+        int step = kingside ? 1 : -1;
+
+        for (int curr = from + step; curr != rookIndex; curr += step) {
+            if (state.getPieceAtIndex(curr) != null) {
+                return false;
+            }
+        }
+
+        // cannot castle while already in check
+        if (isSquareAttacked(state, from, !isWhite)) {
+            return false;
+        }
+
+        // move king one square to check the square it passes through
+        // removing it from its origin ensures it cannot hide an attack
+        int transitIndex = from + step;
+        GameState transitState = MoveHandler.applyMove(state, new Move(from, transitIndex));
+
+        if (isSquareAttacked(transitState, transitIndex, !isWhite)) {
+            return false;
+        }
+
+        // destination safety is checked by the final simulation in isLegalMove
+        return true;
+    }
+
+    /**
+     * Finds the king belonging to the requested side.
+     * @param state game state to inspect
+     * @param isWhite color of the king
+     * @return king index, or -1 if missing
+     */
+    private static int findKing(GameState state, boolean isWhite) {
+        for (int idx = 0; idx < 64; idx++) {
+            Piece piece = state.getPieceAtIndex(idx);
+
+            if (piece instanceof KingPiece && piece.isWhite() == isWhite) {
+                return idx;
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Checks whether a square is attacked by the requested side.
+     * Does not check whether attacking would expose the attacker's king.
+     * @param state game state to inspect
+     * @param target square being checked
+     * @param attackingSideIsWhite color of the attacking side
+     * @return true if the square is attacked
+     */
+    private static boolean isSquareAttacked(GameState state, int target, boolean attackingSideIsWhite) {
+
+        for (int from = 0; from < 64; from++) {
+            Piece piece = state.getPieceAtIndex(from);
+
+            // only check pieces belonging to the attacking side
+            if (piece == null || piece.isWhite() != attackingSideIsWhite) {
+                continue;
+            }
+
+            int fileDelta = target % 8 - from % 8;
+            int rankDelta = target / 8 - from / 8;
+            int filesMoved = Math.abs(fileDelta);
+            int ranksMoved = Math.abs(rankDelta);
+
+            // a piece does not attack its own square
+            if (filesMoved == 0 && ranksMoved == 0) {
+                continue;
+            }
+
+            if (piece instanceof PawnPiece) {
+                // pawns attack one square diagonally forward, not straight ahead
+                int direction = attackingSideIsWhite ? 1 : -1;
+
+                if (filesMoved == 1 && rankDelta == direction) {
+                    return true;
+                }
+            } else if (piece instanceof KnightPiece) {
+                // knights can jump over other pieces
+                boolean knightAttack = (filesMoved == 1 && ranksMoved == 2) || (filesMoved == 2 && ranksMoved == 1);
+
+                if (knightAttack) {
+                    return true;
+                }
+            } else if (piece instanceof KingPiece) {
+                // kings attack adjacent squares only; castling is not an attack
+                if (filesMoved <= 1 && ranksMoved <= 1) {
+                    return true;
+                }
+            } else {
+                boolean straight = filesMoved == 0 || ranksMoved == 0;
+                boolean diagonal = filesMoved == ranksMoved;
+
+                boolean correctDirection = false;
+
+                if (piece instanceof RookPiece) {
+                    correctDirection = straight;
+                } else if (piece instanceof BishopPiece) {
+                    correctDirection = diagonal;
+                } else if (piece instanceof QueenPiece) {
+                    correctDirection = straight || diagonal;
+                }
+
+                // sliding attacks must have no pieces between attacker and target
+                // isPathClear excludes the destination, which is what we need here
+                if (correctDirection && isPathClear(state, new Move(from, target))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
