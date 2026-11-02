@@ -1,6 +1,6 @@
 package com.github.lfbr0.board.piece;
 
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.Piece;
 
 import java.util.Set;
 
@@ -9,7 +9,7 @@ import java.util.Set;
  * @date 10/31/26
  * @project regis
  */
-public class PawnPiece extends ChessPiece {
+public class PawnPiece extends Piece {
 
     private static final Set<Integer> WHITE_MOVE_OFFSETS = Set.of(7, 8, 9, 16);
     private static final Set<Integer> BLACK_MOVE_OFFSETS = Set.of(-7, -8, -9, -16);

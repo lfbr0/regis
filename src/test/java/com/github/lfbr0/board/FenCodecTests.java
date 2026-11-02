@@ -25,7 +25,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeDefaultFenCreatesStartingPosition() {
-        ChessPiece[] board = FenCodec.decode(FenCodec.DEFAULT_FEN_STRING).getBoard();
+        Piece[] board = FenCodec.decode(FenCodec.DEFAULT_FEN_STRING).getBoardCopy();
 
         assertEquals(64, board.length);
 
@@ -56,7 +56,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeEmptyBoardReturnsAllNullSquares() {
-        ChessPiece[] board = FenCodec.decode("8/8/8/8/8/8/8/8").getBoard();
+        Piece[] board = FenCodec.decode("8/8/8/8/8/8/8/8").getBoardCopy();
 
         assertEquals(64, board.length);
         assertPieceCount(board, 0);
@@ -64,7 +64,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeSingleWhiteKingOnH1() {
-        ChessPiece[] board = FenCodec.decode("8/8/8/8/8/8/8/7K").getBoard();
+        Piece[] board = FenCodec.decode("8/8/8/8/8/8/8/7K").getBoardCopy();
 
         assertPiece(board, "h1", KingPiece.class, true);
         assertPieceCount(board, 1);
@@ -72,7 +72,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeSingleBlackQueenOnD8() {
-        ChessPiece[] board = FenCodec.decode("3q4/8/8/8/8/8/8/8").getBoard();
+        Piece[] board = FenCodec.decode("3q4/8/8/8/8/8/8/8").getBoardCopy();
 
         assertPiece(board, "d8", QueenPiece.class, false);
         assertPieceCount(board, 1);
@@ -80,7 +80,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeHandlesLeadingAndTrailingEmptySquares() {
-        ChessPiece[] board = FenCodec.decode("2k5/7K/8/8/8/8/8/8").getBoard();
+        Piece[] board = FenCodec.decode("2k5/7K/8/8/8/8/8/8").getBoardCopy();
 
         assertPiece(board, "c8", KingPiece.class, false);
         assertPiece(board, "h7", KingPiece.class, true);
@@ -92,7 +92,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeReadsLowercaseAndUppercaseSymbols() {
-        ChessPiece[] board = FenCodec.decode("8/8/8/8/3N4/8/8/3n4").getBoard();
+        Piece[] board = FenCodec.decode("8/8/8/8/3N4/8/8/3n4").getBoardCopy();
 
         assertPiece(board, "d4", KnightPiece.class, true);
         assertPiece(board, "d1", KnightPiece.class, false);
@@ -101,8 +101,8 @@ public class FenCodecTests {
 
     @Test
     public void decodeReadsEveryPieceTypeInBothColors() {
-        ChessPiece[] board = FenCodec.decode(
-                "prnbqk2/8/8/8/8/8/8/PRNBQK2").getBoard();
+        Piece[] board = FenCodec.decode(
+                "prnbqk2/8/8/8/8/8/8/PRNBQK2").getBoardCopy();
 
         Class<?>[] types = {
                 PawnPiece.class,
@@ -124,8 +124,8 @@ public class FenCodecTests {
 
     @Test
     public void decodeMapsAllFourCornersCorrectly() {
-        ChessPiece[] board = FenCodec.decode(
-                "r6q/8/8/8/8/8/8/R6Q").getBoard();
+        Piece[] board = FenCodec.decode(
+                "r6q/8/8/8/8/8/8/R6Q").getBoardCopy();
 
         assertPiece(board, "a8", RookPiece.class, false);
         assertPiece(board, "h8", QueenPiece.class, false);
@@ -136,8 +136,8 @@ public class FenCodecTests {
 
     @Test
     public void decodeHandlesRanksWithoutEmptySquares() {
-        ChessPiece[] board = FenCodec.decode(
-                "rnbqkbnr/8/8/8/8/8/8/RNBQKBNR").getBoard();
+        Piece[] board = FenCodec.decode(
+                "rnbqkbnr/8/8/8/8/8/8/RNBQKBNR").getBoardCopy();
 
         assertPiece(board, "a8", RookPiece.class, false);
         assertPiece(board, "h8", RookPiece.class, false);
@@ -148,8 +148,8 @@ public class FenCodecTests {
 
     @Test
     public void decodeReadsBoardWithFullMetadata() {
-        ChessPiece[] board = FenCodec.decode(
-                "8/8/8/8/3p4/8/8/4K3 w - - 0 1").getBoard();
+        Piece[] board = FenCodec.decode(
+                "8/8/8/8/3p4/8/8/4K3 w - - 0 1").getBoardCopy();
 
         assertPiece(board, "d4", PawnPiece.class, false);
         assertPiece(board, "e1", KingPiece.class, true);
@@ -158,8 +158,8 @@ public class FenCodecTests {
 
     @Test
     public void decodeReadsBoardWithCastlingAndEnPassantMetadata() {
-        ChessPiece[] board = FenCodec.decode(
-                "r3k2r/8/8/8/4P3/8/8/R3K2R b KQkq e3 0 1").getBoard();
+        Piece[] board = FenCodec.decode(
+                "r3k2r/8/8/8/4P3/8/8/R3K2R b KQkq e3 0 1").getBoardCopy();
 
         assertPiece(board, "a1", RookPiece.class, true);
         assertPiece(board, "h1", RookPiece.class, true);
@@ -173,9 +173,9 @@ public class FenCodecTests {
 
     @Test
     public void decodeBoardFromSpecificPositionWithMultiplePieces() {
-        ChessPiece[] board = FenCodec.decode(
+        Piece[] board = FenCodec.decode(
                 "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R"
-                        + " w KQkq - 2 2").getBoard();
+                        + " w KQkq - 2 2").getBoardCopy();
 
         assertPiece(board, "a8", RookPiece.class, false);
         assertPiece(board, "c8", BishopPiece.class, false);
@@ -273,7 +273,7 @@ public class FenCodecTests {
 
     @Test
     public void encodeStartingPositionMatchesFullFen() {
-        ChessGameState state = FenCodec.decode(FenCodec.DEFAULT_FEN_STRING);
+        GameState state = FenCodec.decode(FenCodec.DEFAULT_FEN_STRING);
 
         assertEquals(
                 STARTING_PLACEMENT + " w KQkq - 0 1",
@@ -284,31 +284,31 @@ public class FenCodecTests {
     public void encodeEmptyBoardProducesAllEmptyRanks() {
         assertEquals(
                 "8/8/8/8/8/8/8/8 w - - 0 1",
-                FenCodec.encode(new ChessGameState(new ChessPiece[64], true)));
+                FenCodec.encode(new GameState(new Piece[64], true)));
     }
 
     @Test
     public void encodeSinglePieceBoard() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("h1")] = new KingPiece(true);
 
-        assertEquals("8/8/8/8/8/8/8/7K w - - 0 1", FenCodec.encode(new ChessGameState(board, true)));
+        assertEquals("8/8/8/8/8/8/8/7K w - - 0 1", FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeMapsAllFourCornersCorrectly() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("a8")] = new RookPiece(false);
         board[squareToIndex("h8")] = new QueenPiece(false);
         board[squareToIndex("a1")] = new RookPiece(true);
         board[squareToIndex("h1")] = new QueenPiece(true);
 
-        assertEquals("r6q/8/8/8/8/8/8/R6Q w - - 0 1", FenCodec.encode(new ChessGameState(board, true)));
+        assertEquals("r6q/8/8/8/8/8/8/R6Q w - - 0 1", FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeEveryPieceTypeInBothColors() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
 
         board[squareToIndex("a8")] = new PawnPiece(false);
         board[squareToIndex("b8")] = new RookPiece(false);
@@ -326,12 +326,12 @@ public class FenCodecTests {
 
         assertEquals(
                 "prnbqk2/8/8/8/8/8/8/PRNBQK2 w - - 0 1",
-                FenCodec.encode(new ChessGameState(board, true)));
+                FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeMultiplePiecesPreservesBoardOrder() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("a1")] = new RookPiece(true);
         board[squareToIndex("e1")] = new KingPiece(true);
         board[squareToIndex("d8")] = new QueenPiece(false);
@@ -339,35 +339,35 @@ public class FenCodecTests {
 
         assertEquals(
                 "3q4/2b5/8/8/8/8/8/R3K3 w - - 0 1",
-                FenCodec.encode(new ChessGameState(board, true)));
+                FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeCompressesSeparateEmptyRunsWithinRank() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("b4")] = new KnightPiece(true);
         board[squareToIndex("e4")] = new BishopPiece(false);
         board[squareToIndex("g4")] = new RookPiece(true);
 
         assertEquals(
                 "8/8/8/8/1N2b1R1/8/8/8 w - - 0 1",
-                FenCodec.encode(new ChessGameState(board, true)));
+                FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeDoesNotInsertDigitsBetweenAdjacentPieces() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("d4")] = new KingPiece(true);
         board[squareToIndex("e4")] = new QueenPiece(false);
 
         assertEquals(
                 "8/8/8/8/3Kq3/8/8/8 w - - 0 1",
-                FenCodec.encode(new ChessGameState(board, true)));
+                FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeHandlesCompletelyOccupiedRank() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
 
         for (int file = 0; file < 8; file++) {
             board[squareToIndex("a4") + file] = new PawnPiece(true);
@@ -375,19 +375,19 @@ public class FenCodecTests {
 
         assertEquals(
                 "8/8/8/8/PPPPPPPP/8/8/8 w - - 0 1",
-                FenCodec.encode(new ChessGameState(board, true)));
+                FenCodec.encode(new GameState(board, true)));
     }
 
     @Test
     public void encodeRoundTripsThroughDecode() {
-        ChessPiece[] original = new ChessPiece[64];
+        Piece[] original = new Piece[64];
         original[squareToIndex("a1")] = new RookPiece(true);
         original[squareToIndex("e1")] = new KingPiece(true);
         original[squareToIndex("d8")] = new QueenPiece(false);
         original[squareToIndex("h7")] = new PawnPiece(true);
         original[squareToIndex("g2")] = new KnightPiece(false);
 
-        ChessPiece[] decoded = FenCodec.decode(FenCodec.encode(new ChessGameState(original, true))).getBoard();
+        Piece[] decoded = FenCodec.decode(FenCodec.encode(new GameState(original, true))).getBoardCopy();
 
         assertBoardsEquivalent(original, decoded);
     }
@@ -413,13 +413,13 @@ public class FenCodecTests {
 
     @Test
     public void encodeDoesNotModifyBoardContents() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("a1")] = new RookPiece(true);
         board[squareToIndex("d8")] = new QueenPiece(false);
 
-        ChessPiece[] before = board.clone();
+        Piece[] before = board.clone();
 
-        FenCodec.encode(new ChessGameState(board, true));
+        FenCodec.encode(new GameState(board, true));
 
         for (int i = 0; i < board.length; i++) {
             org.junit.Assert.assertSame(
@@ -437,7 +437,7 @@ public class FenCodecTests {
             assertThrows(
                     "Board length " + length,
                     IllegalArgumentException.class,
-                    () -> FenCodec.encode(new ChessGameState(new ChessPiece[length], true)));
+                    () -> FenCodec.encode(new GameState(new Piece[length], true)));
         }
     }
 
@@ -450,57 +450,57 @@ public class FenCodecTests {
 
     @Test
     public void encodeIncludesWhiteTurn() {
-        ChessGameState state = new ChessGameState(new ChessPiece[64], true);
+        GameState state = new GameState(new Piece[64], true);
 
         assertEquals("8/8/8/8/8/8/8/8 w - - 0 1", FenCodec.encode(state));
     }
 
     @Test
     public void encodeIncludesBlackTurn() {
-        ChessGameState state = new ChessGameState(new ChessPiece[64], false);
+        GameState state = new GameState(new Piece[64], false);
 
         assertEquals("8/8/8/8/8/8/8/8 b - - 0 1", FenCodec.encode(state));
     }
 
     @Test
     public void encodeRoundTripPreservesBoardAndTurnForBothColors() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("e1")] = new KingPiece(true);
         board[squareToIndex("e8")] = new KingPiece(false);
 
         for (boolean whiteTurn : new boolean[] {true, false}) {
-            ChessGameState original = new ChessGameState(board, whiteTurn);
-            ChessGameState decoded = FenCodec.decode(FenCodec.encode(original));
+            GameState original = new GameState(board, whiteTurn);
+            GameState decoded = FenCodec.decode(FenCodec.encode(original));
 
-            assertBoardsEquivalent(original.getBoard(), decoded.getBoard());
+            assertBoardsEquivalent(original.getBoardCopy(), decoded.getBoardCopy());
             assertEquals("Active color", whiteTurn, decoded.isWhiteTurn());
         }
     }
 
     @Test
     public void decodeReadsWhiteTurn() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 STARTING_PLACEMENT + " w KQkq - 0 1");
 
         assertNotNull(state);
         assertEquals(true, state.isWhiteTurn());
-        assertEquals(64, state.getBoard().length);
+        assertEquals(64, state.getBoardCopy().length);
     }
 
     @Test
     public void decodeReadsBlackTurn() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 STARTING_PLACEMENT + " b KQkq - 0 1");
 
         assertNotNull(state);
         assertFalse(state.isWhiteTurn());
-        assertPiece(state.getBoard(), "e1", KingPiece.class, true);
-        assertPiece(state.getBoard(), "e8", KingPiece.class, false);
+        assertPiece(state.getBoardCopy(), "e1", KingPiece.class, true);
+        assertPiece(state.getBoardCopy(), "e8", KingPiece.class, false);
     }
 
     @Test
     public void decodePlacementOnlyDefaultsToWhiteTurn() {
-        ChessGameState state = FenCodec.decode(STARTING_PLACEMENT);
+        GameState state = FenCodec.decode(STARTING_PLACEMENT);
 
         assertEquals(true, state.isWhiteTurn());
     }
@@ -521,7 +521,7 @@ public class FenCodecTests {
                 STARTING_PLACEMENT, STARTING_PLACEMENT + " w",
                 STARTING_PLACEMENT + " b"
         }) {
-            ChessGameState state = FenCodec.decode(input);
+            GameState state = FenCodec.decode(input);
 
             assertEquals(!input.endsWith(" b"), state.isWhiteTurn());
             assertCastling(state, false, false, false, false);
@@ -540,7 +540,7 @@ public class FenCodecTests {
             boolean bq = (mask & 8) != 0;
             String rights = castlingToken(wk, wq, bk, bq);
 
-            ChessGameState state = FenCodec.decode(
+            GameState state = FenCodec.decode(
                     STARTING_PLACEMENT + " w " + rights + " - 0 1");
 
             assertCastling(state, wk, wq, bk, bq);
@@ -554,8 +554,8 @@ public class FenCodecTests {
             boolean wq = (mask & 2) != 0;
             boolean bk = (mask & 4) != 0;
             boolean bq = (mask & 8) != 0;
-            ChessGameState state = new ChessGameState(
-                    new ChessPiece[64], true, wk, wq, bk, bq, null, 0, 1);
+            GameState state = new GameState(
+                    new Piece[64], true, wk, wq, bk, bq, null, 0, 1);
 
             assertEquals(
                     "8/8/8/8/8/8/8/8 w "
@@ -570,7 +570,7 @@ public class FenCodecTests {
             for (String rank : new String[] {"3", "6"}) {
                 String target = file + rank;
                 String color = rank.equals("3") ? "b" : "w";
-                ChessGameState state = FenCodec.decode(
+                GameState state = FenCodec.decode(
                         STARTING_PLACEMENT + " " + color + " - " + target + " 0 12");
 
                 assertEquals(target, state.getEnPassantSquare());
@@ -580,7 +580,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeAbsentEnPassantTargetBecomesNull() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 STARTING_PLACEMENT + " w - - 0 1");
 
         assertNull(state.getEnPassantSquare());
@@ -588,7 +588,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeReadsMoveCounters() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 STARTING_PLACEMENT + " b - - 99 123");
 
         assertEquals(99, state.getHalfmoveClock());
@@ -597,7 +597,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeAcceptsMaximumIntegerCounters() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 STARTING_PLACEMENT + " w - - 2147483647 2147483647");
 
         assertEquals(Integer.MAX_VALUE, state.getHalfmoveClock());
@@ -606,10 +606,10 @@ public class FenCodecTests {
 
     @Test
     public void encodeWritesAllMetadataFromAnIndependentState() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("e1")] = new KingPiece(true);
         board[squareToIndex("e8")] = new KingPiece(false);
-        ChessGameState state = new ChessGameState(
+        GameState state = new GameState(
                 board, false, true, false, false, true, "e3", 0, 42);
 
         assertEquals(
@@ -633,17 +633,17 @@ public class FenCodecTests {
 
     @Test
     public void stateRoundTripPreservesEveryField() {
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         board[squareToIndex("e1")] = new KingPiece(true);
         board[squareToIndex("e8")] = new KingPiece(false);
 
         for (boolean white : new boolean[] {true, false}) {
-            ChessGameState original = new ChessGameState(
+            GameState original = new GameState(
                     board, white, false, true, true, false,
                     white ? "d6" : "e3", 0, 37);
-            ChessGameState decoded = FenCodec.decode(FenCodec.encode(original));
+            GameState decoded = FenCodec.decode(FenCodec.encode(original));
 
-            assertBoardsEquivalent(original.getBoard(), decoded.getBoard());
+            assertBoardsEquivalent(original.getBoardCopy(), decoded.getBoardCopy());
             assertEquals(original.isWhiteTurn(), decoded.isWhiteTurn());
             assertCastling(decoded, false, true, true, false);
             assertEquals(original.getEnPassantSquare(), decoded.getEnPassantSquare());
@@ -654,7 +654,7 @@ public class FenCodecTests {
 
     @Test
     public void decodeAcceptsSurroundingAndRepeatedWhitespace() {
-        ChessGameState state = FenCodec.decode(
+        GameState state = FenCodec.decode(
                 "  " + STARTING_PLACEMENT + "  b\tKq  -  7  42  ");
 
         assertEquals(
@@ -706,7 +706,7 @@ public class FenCodecTests {
 
     @Test
     public void encodeRejectsNullBoard() {
-        ChessGameState state = new ChessGameState(null, true);
+        GameState state = new GameState(null, true);
 
         assertThrows(IllegalArgumentException.class, () -> FenCodec.encode(state));
     }
@@ -714,8 +714,8 @@ public class FenCodecTests {
     @Test
     public void encodeRejectsInvalidEnPassantTargets() {
         for (String target : new String[] {"-", "e4", "E3", "i6", ""}) {
-            ChessGameState state = new ChessGameState(
-                    new ChessPiece[64], true,
+            GameState state = new GameState(
+                    new Piece[64], true,
                     false, false, false, false, target, 0, 1);
 
             assertThrows(
@@ -727,8 +727,8 @@ public class FenCodecTests {
 
     @Test
     public void encodeRejectsNegativeHalfmoveClock() {
-        ChessGameState state = new ChessGameState(
-                new ChessPiece[64], true,
+        GameState state = new GameState(
+                new Piece[64], true,
                 false, false, false, false, null, -1, 1);
 
         assertThrows(IllegalArgumentException.class, () -> FenCodec.encode(state));
@@ -737,8 +737,8 @@ public class FenCodecTests {
     @Test
     public void encodeRejectsNonPositiveFullmoveNumber() {
         for (int number : new int[] {0, -1}) {
-            ChessGameState state = new ChessGameState(
-                    new ChessPiece[64], true,
+            GameState state = new GameState(
+                    new Piece[64], true,
                     false, false, false, false, null, 0, number);
 
             assertThrows(IllegalArgumentException.class, () -> FenCodec.encode(state));
@@ -746,7 +746,7 @@ public class FenCodecTests {
     }
 
     private static void assertCastling(
-            ChessGameState state, boolean wk, boolean wq, boolean bk, boolean bq) {
+            GameState state, boolean wk, boolean wq, boolean bk, boolean bq) {
         assertEquals("White kingside", wk, state.isWhiteKingsideCastling());
         assertEquals("White queenside", wq, state.isWhiteQueensideCastling());
         assertEquals("Black kingside", bk, state.isBlackKingsideCastling());
@@ -760,12 +760,12 @@ public class FenCodecTests {
     }
 
     private static void assertPiece(
-            ChessPiece[] board,
+            Piece[] board,
             String square,
             Class<?> expectedType,
             boolean white) {
 
-        ChessPiece piece = board[squareToIndex(square)];
+        Piece piece = board[squareToIndex(square)];
 
         assertNotNull("Expected a piece on " + square, piece);
         assertEquals(
@@ -778,19 +778,19 @@ public class FenCodecTests {
                 piece.isWhite());
     }
 
-    private static void assertEmpty(ChessPiece[] board, String square) {
+    private static void assertEmpty(Piece[] board, String square) {
         assertNull(
                 "Expected an empty square on " + square,
                 board[squareToIndex(square)]);
     }
 
     private static void assertPieceCount(
-            ChessPiece[] board,
+            Piece[] board,
             int expectedCount) {
 
         int actualCount = 0;
 
-        for (ChessPiece piece : board) {
+        for (Piece piece : board) {
             if (piece != null) {
                 actualCount++;
             }
@@ -800,8 +800,8 @@ public class FenCodecTests {
     }
 
     private static void assertBoardsEquivalent(
-            ChessPiece[] expected,
-            ChessPiece[] actual) {
+            Piece[] expected,
+            Piece[] actual) {
 
         assertNotNull("Decoded board", actual);
         assertEquals("Board length", expected.length, actual.length);

@@ -15,11 +15,11 @@ import java.util.Arrays;
  */
 @AllArgsConstructor
 @ToString
-public class ChessGameState {
+public class GameState {
 
     // 64 squares, read from bottom left to top right
     // so a1 = 0, a2 = 8, h1 = 7, h8 = 63
-    private final ChessPiece[] board;
+    private final Piece[] board;
     // marks whose turn it is
     @Getter private final boolean isWhiteTurn;
     // castling rights
@@ -36,7 +36,7 @@ public class ChessGameState {
     @Getter private final int fullmoveNumber;
 
 
-    public ChessGameState(ChessPiece[] board, boolean isWhiteTurn) {
+    public GameState(Piece[] board, boolean isWhiteTurn) {
         this.board = board;
         this.isWhiteTurn = isWhiteTurn;
         this.whiteKingsideCastling = false;
@@ -52,9 +52,9 @@ public class ChessGameState {
      * Creates a new ChessGameState from a FEN string.
      * @param fenString FEN string
      */
-    public ChessGameState(String fenString) {
-        ChessGameState state = FenCodec.decode(fenString);
-        this.board = state.getBoard();
+    public GameState(String fenString) {
+        GameState state = FenCodec.decode(fenString);
+        this.board = state.getBoardCopy();
         this.isWhiteTurn = state.isWhiteTurn();
         this.whiteKingsideCastling = state.isWhiteKingsideCastling();
         this.whiteQueensideCastling = state.isWhiteQueensideCastling();
@@ -69,7 +69,7 @@ public class ChessGameState {
      * Returns a copy of the board.
      * @return copy of the board
      */
-    public ChessPiece[] getBoardCopy() {
+    public Piece[] getBoardCopy() {
         return Arrays.copyOf(board, 64);
     }
 
@@ -78,7 +78,7 @@ public class ChessGameState {
      * @param idx Index of the piece to return
      * @return Piece at the given index
      */
-    public ChessPiece getPieceAtIndex(int idx) {
+    public Piece getPieceAtIndex(int idx) {
         return board[idx];
     }
 }

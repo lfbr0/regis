@@ -6,8 +6,8 @@ package com.github.lfbr0.engine;
  * @project regis
  */
 
-import com.github.lfbr0.board.ChessGameState;
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.GameState;
+import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.*;
 
 import java.util.Set;
@@ -18,9 +18,9 @@ import java.util.stream.Stream;
 /**
  * Generates legal moves for a given position and verifies if a move is legal
  */
-public class ChessMoveValidator {
+public class MoveValidator {
 
-    private ChessMoveValidator() {
+    private MoveValidator() {
         // prevent instantiation
     }
 
@@ -29,18 +29,18 @@ public class ChessMoveValidator {
      * @param state state of chess game
      * @return set of all legal moves
      */
-    public static Set<ChessMove> getLegalMoves(ChessGameState state) {
+    public static Set<Move> getLegalMoves(GameState state) {
         return IntStream
                 .range(0, 64) // for all indices, check all pieces
                 .filter(idx -> {
                     // check that we are grabbing a piece and it's our color
-                    ChessPiece piece = state.getBoard()[idx];
+                    Piece piece = state.getPieceAtIndex(idx);
                     return piece != null && piece.isWhite() == state.isWhiteTurn();
                 })
-                .mapToObj(idx -> new Object[]{ idx, state.getBoard()[idx] }) // idx, piece pair
+                .mapToObj(idx -> new Object[]{ idx, state.getPieceAtIndex(idx) }) // idx, piece pair
                 .flatMap(idxPiecePair -> { // convert pair to chess move
                     int idx = (int) idxPiecePair[0];
-                    ChessPiece piece = (ChessPiece) idxPiecePair[1];
+                    Piece piece = (Piece) idxPiecePair[1];
 
                     return piece
                             .getMoveOffsets()
@@ -55,10 +55,10 @@ public class ChessMoveValidator {
                                     return Stream
                                             // promotable pieces
                                             .of(BishopPiece.class, KnightPiece.class, RookPiece.class, QueenPiece.class)
-                                            .map(type -> new ChessMove(idx, to, type));
+                                            .map(type -> new Move(idx, to, type));
                                 }
 
-                                return Stream.of(new ChessMove(idx, to, null));
+                                return Stream.of(new Move(idx, to, null));
                     });
                 })
                 .filter(move -> isLegalMove(state, move)) // get only legal moves
@@ -71,14 +71,14 @@ public class ChessMoveValidator {
      * @param move candidate move
      * @return true if legal move
      */
-    public static boolean isLegalMove(ChessGameState state, ChessMove move) {
+    public static boolean isLegalMove(GameState state, Move move) {
 
         // is it inside the board?
         if (move.getFrom() < 0 || move.getFrom() >= 64) {
             return false;
         }
 
-        ChessPiece movingPiece = state.getBoard()[move.getFrom()];
+        Piece movingPiece = state.getPieceAtIndex(move.getFrom());
 
         // does it point to an empty square?
         if (movingPiece == null) {
@@ -97,7 +97,7 @@ public class ChessMoveValidator {
         }
 
         // are we moving to a place already occupied by us?
-        ChessPiece targetPiece = state.getBoard()[move.getTo()];
+        Piece targetPiece = state.getPieceAtIndex(move.getTo());
         if (targetPiece != null && targetPiece.isWhite() == state.isWhiteTurn()) {
             return false;
         }
@@ -151,7 +151,7 @@ public class ChessMoveValidator {
      * @param to ending square
      * @return true if move has valid geometry
      */
-    private static boolean validGeometry(ChessPiece movingPiece, int from, int to) {
+    private static boolean validGeometry(Piece movingPiece, int from, int to) {
         int offset = to - from;
 
         // rule to remember: idx % 8 = file
@@ -333,10 +333,10 @@ public class ChessMoveValidator {
      * @param state current chess game state
      * @return true if move is valid for pawn
      */
-    private static boolean validPawnMove(ChessGameState state, ChessMove move) {
+    private static boolean validPawnMove(GameState state, Move move) {
         int from = move.getFrom();
         int to = move.getTo();
-        ChessPiece targetPiece = state.getBoard()[to];
+        Piece targetPiece = state.getPieceAtIndex(to);
         boolean isWhite = state.isWhiteTurn();
 
         // are we promoting before reaching the last rank?
@@ -360,11 +360,11 @@ public class ChessMoveValidator {
             // if we're moving two places, we must be in second rows
             if (Math.abs(to - from) == 16) {
                 // if white cannot have piece in middle and not doing this from second rank
-                if (isWhite && (from / 8 != 1 || state.getBoard()[to-8] != null)) {
+                if (isWhite && (from / 8 != 1 || state.getPieceAtIndex(to-8) != null)) {
                     return false;
                 }
                 // if black, cannot have piece in middle and not doing this from first rank
-                if (!isWhite && (from / 8 != 6 || state.getBoard()[to+8] != null)) {
+                if (!isWhite && (from / 8 != 6 || state.getPieceAtIndex(to+8) != null)) {
                     return false;
                 }
             }
@@ -382,7 +382,7 @@ public class ChessMoveValidator {
                 String enPassantSquare = state.getEnPassantSquare();
 
                 if (enPassantSquare == null
-                        || !enPassantSquare.equals(ChessMove.indexToSquareString(to))) {
+                        || !enPassantSquare.equals(Move.indexToSquareString(to))) {
                     return false;
                 }
 
@@ -394,7 +394,7 @@ public class ChessMoveValidator {
 
                 // the captured pawn is behind the destination square
                 int capturedPawnIndex = isWhite ? to - 8 : to + 8;
-                ChessPiece capturedPiece = state.getBoard()[capturedPawnIndex];
+                Piece capturedPiece = state.getPieceAtIndex(capturedPawnIndex);
 
                 // there must actually be an enemy pawn there
                 if (!(capturedPiece instanceof PawnPiece) || capturedPiece.isWhite() == isWhite) {
@@ -414,10 +414,10 @@ public class ChessMoveValidator {
      * @param move move to check
      * @return true if path is clear
      */
-    private static boolean isPathClear(ChessGameState state, ChessMove move) {
+    private static boolean isPathClear(GameState state, Move move) {
         int from = move.getFrom();
         int to = move.getTo();
-        ChessPiece movingPiece = state.getBoard()[from];
+        Piece movingPiece = state.getPieceAtIndex(from);
 
         if (movingPiece instanceof BishopPiece) {
             boolean movingUp = to / 8 > from / 8;
@@ -438,7 +438,7 @@ public class ChessMoveValidator {
 
             // check only squares between origin and destination
             for (int curr = from + step; curr != to; curr += step) {
-                if (state.getBoard()[curr] != null) {
+                if (state.getPieceAtIndex(curr) != null) {
                     return false;
                 }
             }
@@ -459,7 +459,7 @@ public class ChessMoveValidator {
 
             // check only squares between origin and destination
             for (int curr = from + step; curr != to; curr += step) {
-                if (state.getBoard()[curr] != null) {
+                if (state.getPieceAtIndex(curr) != null) {
                     return false;
                 }
             }
@@ -494,7 +494,7 @@ public class ChessMoveValidator {
 
             // check only squares between origin and destination
             for (int curr = from + step; curr != to; curr += step) {
-                if (state.getBoard()[curr] != null) {
+                if (state.getPieceAtIndex(curr) != null) {
                     return false;
                 }
             }

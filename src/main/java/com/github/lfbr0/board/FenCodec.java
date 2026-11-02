@@ -19,7 +19,7 @@ public class FenCodec {
     // validation regex for FEN rows string
     private static final String FEN_ROWS_REGEX = "^(?:[rnbqkpRNBQKP1-8]+/){7}[rnbqkpRNBQKP1-8]+$";
 
-    public static String encode(ChessGameState state) {
+    public static String encode(GameState state) {
         if (state == null) {
             throw new IllegalArgumentException("Chess game state cannot be null");
         }
@@ -46,7 +46,7 @@ public class FenCodec {
         }
 
         return new StringBuilder()
-                .append(encodeBoard(state.getBoard())) // actual board encoding
+                .append(encodeBoard(state.getBoardCopy())) // actual board encoding
                 .append(' ').append(state.isWhiteTurn() ? 'w' : 'b')
                 .append(' ').append(castling.isEmpty() ? "-" : castling.toString())
                 .append(' ').append(enPassant == null ? "-" : enPassant)
@@ -55,7 +55,7 @@ public class FenCodec {
                 .toString();
     }
 
-    public static ChessGameState decode(String fen) {
+    public static GameState decode(String fen) {
         if (fen == null) {
             throw new IllegalArgumentException("FEN string cannot be null");
         }
@@ -70,7 +70,7 @@ public class FenCodec {
         if (!fenRowsString.matches(FEN_ROWS_REGEX)) {
             throw new IllegalArgumentException("Invalid FEN rows string: " + fenRowsString);
         }
-        ChessPiece[] board = decodeBoard(fenRowsString.split("/"));
+        Piece[] board = decodeBoard(fenRowsString.split("/"));
 
         // then, the turn - if no token, assume white
         boolean isWhiteTurn = true;
@@ -107,7 +107,7 @@ public class FenCodec {
             fullmoveNumber = parseCounter(fenTokens[5], 1, "fullmove number");
         }
 
-        return new ChessGameState(
+        return new GameState(
                 board,
                 isWhiteTurn,
                 castling.contains("K"),
@@ -129,7 +129,7 @@ public class FenCodec {
      * @param board Chess board
      * @return FEN string rows
      */
-    private static StringBuilder encodeBoard(ChessPiece[] board) {
+    private static StringBuilder encodeBoard(Piece[] board) {
         if (board == null || board.length != 64) {
             throw new IllegalArgumentException("Invalid board");
         }
@@ -142,7 +142,7 @@ public class FenCodec {
             int emptySpaces = 0;
 
             for (int i = 0; i < 8; i++) {
-                ChessPiece piece = board[currentBoardIndex + i];
+                Piece piece = board[currentBoardIndex + i];
 
                 // if no piece, then add empty spaces
                 if (piece == null) {
@@ -182,12 +182,12 @@ public class FenCodec {
      * @param fenRows FEN string rows (ie. ["rnbqkbnr", "pppppppp", "8", ...])
      * @return Chess board
      */
-    private static ChessPiece[] decodeBoard(String[] fenRows) {
+    private static Piece[] decodeBoard(String[] fenRows) {
         if (fenRows.length != 8) {
             throw new IllegalArgumentException("FEN string must have 8 rows");
         }
 
-        ChessPiece[] board = new ChessPiece[64];
+        Piece[] board = new Piece[64];
         // start at a8
         int currentBoardIndex = 56;
 
@@ -252,9 +252,9 @@ public class FenCodec {
      * @param symbol symbol to convert
      * @return piece corresponding to symbol
      */
-    private static ChessPiece symbolToPiece(char symbol) {
+    private static Piece symbolToPiece(char symbol) {
         // determine piece class based on symbol
-        Class<? extends ChessPiece> pieceClass = null;
+        Class<? extends Piece> pieceClass = null;
         switch (Character.toUpperCase(symbol)) {
             case 'P': pieceClass = PawnPiece.class; break;
             case 'N': pieceClass = KnightPiece.class; break;

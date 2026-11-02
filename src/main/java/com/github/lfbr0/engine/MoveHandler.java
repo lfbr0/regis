@@ -6,18 +6,16 @@ package com.github.lfbr0.engine;
  * @project regis
  */
 
-import com.github.lfbr0.board.ChessGameState;
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.GameState;
+import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.*;
-
-import java.util.Arrays;
 
 /**
  * Applies a move to the game state
  */
-public class ChessMoveHandler {
+public class MoveHandler {
 
-    private ChessMoveHandler() {
+    private MoveHandler() {
         // prevent instantiation
     }
 
@@ -33,12 +31,12 @@ public class ChessMoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    public ChessGameState applyMove(ChessGameState state, ChessMove move) {
+    public GameState applyMove(GameState state, Move move) {
         if (state == null || move == null) {
             throw new IllegalArgumentException("Invalid arguments, null passed to applyMove!");
         }
 
-        ChessPiece movingPiece = state.getBoard()[move.getFrom()];
+        Piece movingPiece = state.getPieceAtIndex(move.getFrom());
 
         if (movingPiece instanceof PawnPiece) {
             return applyPawnMove(state, move);
@@ -56,9 +54,9 @@ public class ChessMoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    private ChessGameState applyPieceMove(ChessGameState state, ChessMove move) {
-        ChessPiece movingPiece = state.getPieceAtIndex(move.getFrom());
-        ChessPiece[] newBoard = state.getBoardCopy(); // it already returns new copy
+    private GameState applyPieceMove(GameState state, Move move) {
+        Piece movingPiece = state.getPieceAtIndex(move.getFrom());
+        Piece[] newBoard = state.getBoardCopy(); // it already returns new copy
 
         // capture or move
         newBoard[move.getTo()] = movingPiece;
@@ -70,13 +68,6 @@ public class ChessMoveHandler {
             // TODO
         }
 
-        return new ChessGameState(
-                newBoard,
-                isWhiteTurn,
-                // TODO all args
-
-        );
-
         return null; // TODO
     }
 
@@ -86,7 +77,7 @@ public class ChessMoveHandler {
      * @param move move to apply
      * @return new game state
      */
-    private ChessGameState applyKingMove(ChessGameState state, ChessMove move) {
+    private GameState applyKingMove(GameState state, Move move) {
         return null; // TODO
     }
 
@@ -97,7 +88,7 @@ public class ChessMoveHandler {
      * @param move
      * @return
      */
-    private ChessGameState applyPawnMove(ChessGameState state, ChessMove move) {
+    private GameState applyPawnMove(GameState state, Move move) {
         return null; // TODO
     }
 

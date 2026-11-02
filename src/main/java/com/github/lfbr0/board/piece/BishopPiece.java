@@ -1,6 +1,6 @@
 package com.github.lfbr0.board.piece;
 
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.Piece;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -10,7 +10,7 @@ import java.util.Set;
  * @date 10/31/26
  * @project regis
  */
-public class BishopPiece extends ChessPiece {
+public class BishopPiece extends Piece {
 
     private static final Set<Integer> MOVE_OFFSETS;
 

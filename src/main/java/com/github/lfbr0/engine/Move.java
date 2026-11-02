@@ -1,6 +1,6 @@
 package com.github.lfbr0.engine;
 
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.*;
 import lombok.Getter;
 
@@ -13,7 +13,7 @@ import java.util.Optional;
  * @project regis
  */
 
-public final class ChessMove {
+public final class Move {
 
     public static final String CHESS_MOVE_UCI_REGEX = "^[a-h][1-8][a-h][1-8][qrbn]?$";
 
@@ -24,15 +24,15 @@ public final class ChessMove {
     @Getter
     private final int to;
     // promotion piece, if there's a promotion
-    private final Class<? extends ChessPiece> promotionPieceClass;
+    private final Class<? extends Piece> promotionPieceClass;
 
-    public ChessMove(String uciMoveString) {
+    public Move(String uciMoveString) {
         if (uciMoveString == null || !uciMoveString.matches(CHESS_MOVE_UCI_REGEX)) {
             throw new IllegalArgumentException("Invalid move string: " + uciMoveString);
         }
 
-        from = ChessMove.squareStringToIndex(uciMoveString.substring(0, 2));
-        to = ChessMove.squareStringToIndex(uciMoveString.substring(2, 4));
+        from = Move.squareStringToIndex(uciMoveString.substring(0, 2));
+        to = Move.squareStringToIndex(uciMoveString.substring(2, 4));
 
         if (from == to) {
             throw new IllegalArgumentException("Invalid move: " + uciMoveString);
@@ -53,7 +53,7 @@ public final class ChessMove {
         }
     }
 
-    public ChessMove(int from, int to, Class<? extends ChessPiece> promotionPieceClass) {
+    public Move(int from, int to, Class<? extends Piece> promotionPieceClass) {
         if (from < 0 || from > 63) {
             throw new IllegalArgumentException("Invalid from index: " + from);
         }
@@ -74,7 +74,7 @@ public final class ChessMove {
         this.promotionPieceClass = promotionPieceClass;
     }
 
-    public ChessMove(int from, int to) {
+    public Move(int from, int to) {
         this(from, to, null);
     }
 
@@ -108,7 +108,7 @@ public final class ChessMove {
      * Gets the promotion piece class, if there's a promotion.
      * @return Optional containing the promotion piece class, if there's a promotion.
      */
-    public Optional<Class<? extends ChessPiece>> getPromotionPieceClass() {
+    public Optional<Class<? extends Piece>> getPromotionPieceClass() {
         return Optional.ofNullable(promotionPieceClass);
     }
 
@@ -123,15 +123,15 @@ public final class ChessMove {
         else if (promotionPieceClass == BishopPiece.class) promotion = "b";
         else if (promotionPieceClass == KnightPiece.class) promotion = "n";
 
-        return ChessMove.indexToSquareString(from) + ChessMove.indexToSquareString(to) + promotion;
+        return Move.indexToSquareString(from) + Move.indexToSquareString(to) + promotion;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof ChessMove chessMove)) return false;
-        return  Objects.equals(from, chessMove.from) &&
-                Objects.equals(to, chessMove.to) &&
-                Objects.equals(promotionPieceClass, chessMove.promotionPieceClass);
+        if (!(o instanceof Move move)) return false;
+        return  Objects.equals(from, move.from) &&
+                Objects.equals(to, move.to) &&
+                Objects.equals(promotionPieceClass, move.promotionPieceClass);
     }
 
     @Override

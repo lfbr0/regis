@@ -11,12 +11,12 @@ import java.util.Set;
 /**
  * Represents generic chess pieces
  */
-public abstract class ChessPiece {
+public abstract class Piece {
 
     private final boolean isWhite;
     private final float value;
 
-    public ChessPiece(boolean isWhite, float value) {
+    public Piece(boolean isWhite, float value) {
         this.isWhite = isWhite;
         this.value = value;
     }

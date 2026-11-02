@@ -2,18 +2,18 @@ package com.github.lfbr0.engine;
 
 import static org.junit.Assert.*;
 
-import com.github.lfbr0.board.ChessPiece;
+import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.*;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.Test;
 
 /** Tests index-based moves, UCI parsing, serialization, and value equality. */
-public class ChessMoveTests {
+public class MoveTests {
 
     @Test
     public void parsesNormalMove() {
-        ChessMove move = new ChessMove("e2e4");
+        Move move = new Move("e2e4");
         assertEquals(12, move.getFrom());
         assertEquals(28, move.getTo());
         assertFalse(move.getPromotionPieceClass().isPresent());
@@ -21,10 +21,10 @@ public class ChessMoveTests {
 
     @Test
     public void parsesCornerSquares() {
-        ChessMove move = new ChessMove("a1h8");
+        Move move = new Move("a1h8");
         assertEquals(0, move.getFrom());
         assertEquals(63, move.getTo());
-        ChessMove reverse = new ChessMove("h8a1");
+        Move reverse = new Move("h8a1");
         assertEquals(63, reverse.getFrom());
         assertEquals(0, reverse.getTo());
     }
@@ -56,7 +56,7 @@ public class ChessMoveTests {
 
     @Test
     public void serializesNormalMove() {
-        assertEquals("e2e4", new ChessMove("e2e4").getUciMoveString());
+        assertEquals("e2e4", new Move("e2e4").getUciMoveString());
     }
 
     @Test
@@ -65,7 +65,7 @@ public class ChessMoveTests {
                 "a7a8q", "a7a8r", "a7a8b", "a7a8n",
                 "h2h1q", "h2h1r", "h2h1b", "h2h1n"
         }) {
-            assertEquals(input, new ChessMove(input).getUciMoveString());
+            assertEquals(input, new Move(input).getUciMoveString());
         }
     }
 
@@ -79,7 +79,7 @@ public class ChessMoveTests {
 
     @Test
     public void rejectsNull() {
-        assertThrows(IllegalArgumentException.class, () -> new ChessMove(null));
+        assertThrows(IllegalArgumentException.class, () -> new Move(null));
     }
 
     @Test
@@ -138,33 +138,33 @@ public class ChessMoveTests {
     @Test
     public void sameSquareMoveIsRepresentableButNotNecessarilyLegal() {
         assertCoordinates("e4e4", 28, 28);
-        assertEquals(new ChessMove("e4e4"), new ChessMove(28, 28));
+        assertEquals(new Move("e4e4"), new Move(28, 28));
     }
 
     @Test
     public void promotionLegalityBelongsToValidator() {
-        assertEquals("e2e4q", new ChessMove("e2e4q").getUciMoveString());
-        assertEquals(new ChessMove("e2e4q"), new ChessMove(12, 28, QueenPiece.class));
+        assertEquals("e2e4q", new Move("e2e4q").getUciMoveString());
+        assertEquals(new Move("e2e4q"), new Move(12, 28, QueenPiece.class));
     }
 
     @Test
     public void convertsKnownSquaresToIndices() {
-        assertEquals(0, ChessMove.squareStringToIndex("a1"));
-        assertEquals(7, ChessMove.squareStringToIndex("h1"));
-        assertEquals(8, ChessMove.squareStringToIndex("a2"));
-        assertEquals(27, ChessMove.squareStringToIndex("d4"));
-        assertEquals(56, ChessMove.squareStringToIndex("a8"));
-        assertEquals(63, ChessMove.squareStringToIndex("h8"));
+        assertEquals(0, Move.squareStringToIndex("a1"));
+        assertEquals(7, Move.squareStringToIndex("h1"));
+        assertEquals(8, Move.squareStringToIndex("a2"));
+        assertEquals(27, Move.squareStringToIndex("d4"));
+        assertEquals(56, Move.squareStringToIndex("a8"));
+        assertEquals(63, Move.squareStringToIndex("h8"));
     }
 
     @Test
     public void convertsKnownIndicesToSquares() {
-        assertEquals("a1", ChessMove.indexToSquareString(0));
-        assertEquals("h1", ChessMove.indexToSquareString(7));
-        assertEquals("a2", ChessMove.indexToSquareString(8));
-        assertEquals("d4", ChessMove.indexToSquareString(27));
-        assertEquals("a8", ChessMove.indexToSquareString(56));
-        assertEquals("h8", ChessMove.indexToSquareString(63));
+        assertEquals("a1", Move.indexToSquareString(0));
+        assertEquals("h1", Move.indexToSquareString(7));
+        assertEquals("a2", Move.indexToSquareString(8));
+        assertEquals("d4", Move.indexToSquareString(27));
+        assertEquals("a8", Move.indexToSquareString(56));
+        assertEquals("h8", Move.indexToSquareString(63));
     }
 
     @Test
@@ -182,8 +182,8 @@ public class ChessMoveTests {
         int index = 0;
         for (String rank : ranks) {
             for (String square : rank.split(" ")) {
-                assertEquals(square, index, ChessMove.squareStringToIndex(square));
-                assertEquals("Index " + index, square, ChessMove.indexToSquareString(index));
+                assertEquals(square, index, Move.squareStringToIndex(square));
+                assertEquals("Index " + index, square, Move.indexToSquareString(index));
                 index++;
             }
         }
@@ -197,7 +197,7 @@ public class ChessMoveTests {
         }) {
             assertThrows("Invalid square [" + square + "]",
                     IllegalArgumentException.class,
-                    () -> ChessMove.squareStringToIndex(square));
+                    () -> Move.squareStringToIndex(square));
         }
     }
 
@@ -205,13 +205,13 @@ public class ChessMoveTests {
     public void rejectsOutOfRangeIndicesDuringConversion() {
         for (int index : invalidIndices()) {
             assertThrows("Index " + index, IllegalArgumentException.class,
-                    () -> ChessMove.indexToSquareString(index));
+                    () -> Move.indexToSquareString(index));
         }
     }
 
     @Test
     public void constructsMoveFromIndices() {
-        ChessMove move = new ChessMove(12, 28);
+        Move move = new Move(12, 28);
         assertEquals(12, move.getFrom());
         assertEquals(28, move.getTo());
         assertFalse(move.getPromotionPieceClass().isPresent());
@@ -220,8 +220,8 @@ public class ChessMoveTests {
 
     @Test
     public void indexConstructorSupportsCornerBoundaries() {
-        assertEquals("a1h8", new ChessMove(0, 63).getUciMoveString());
-        assertEquals("h8a1", new ChessMove(63, 0).getUciMoveString());
+        assertEquals("a1h8", new Move(0, 63).getUciMoveString());
+        assertEquals("h8a1", new Move(63, 0).getUciMoveString());
     }
 
     @Test
@@ -234,8 +234,8 @@ public class ChessMoveTests {
 
     @Test
     public void nullPromotionMeansNoPromotion() {
-        ChessMove move = new ChessMove(12, 28, null);
-        assertEquals(new ChessMove(12, 28), move);
+        Move move = new Move(12, 28, null);
+        assertEquals(new Move(12, 28), move);
         assertFalse(move.getPromotionPieceClass().isPresent());
         assertEquals("e2e4", move.getUciMoveString());
     }
@@ -243,36 +243,36 @@ public class ChessMoveTests {
     @Test
     public void indexConstructorsRejectInvalidOrigins() {
         for (int index : invalidIndices()) {
-            assertThrows(IllegalArgumentException.class, () -> new ChessMove(index, 28));
+            assertThrows(IllegalArgumentException.class, () -> new Move(index, 28));
             assertThrows(IllegalArgumentException.class,
-                    () -> new ChessMove(index, 56, QueenPiece.class));
+                    () -> new Move(index, 56, QueenPiece.class));
         }
     }
 
     @Test
     public void indexConstructorsRejectInvalidDestinations() {
         for (int index : invalidIndices()) {
-            assertThrows(IllegalArgumentException.class, () -> new ChessMove(12, index));
+            assertThrows(IllegalArgumentException.class, () -> new Move(12, index));
             assertThrows(IllegalArgumentException.class,
-                    () -> new ChessMove(48, index, QueenPiece.class));
+                    () -> new Move(48, index, QueenPiece.class));
         }
     }
 
     @Test
     public void rejectsPawnOrKingAsPromotion() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ChessMove(48, 56, PawnPiece.class));
+                () -> new Move(48, 56, PawnPiece.class));
         assertThrows(IllegalArgumentException.class,
-                () -> new ChessMove(48, 56, KingPiece.class));
+                () -> new Move(48, 56, KingPiece.class));
     }
 
     @Test
     public void allSquarePairsAgreeAcrossConstructorsAndSerialization() {
         for (int from = 0; from < 64; from++) {
             for (int to = 0; to < 64; to++) {
-                ChessMove indexed = new ChessMove(from, to);
+                Move indexed = new Move(from, to);
                 String uci = indexed.getUciMoveString();
-                ChessMove parsed = new ChessMove(uci);
+                Move parsed = new Move(uci);
                 assertEquals("Origin of " + uci, from, parsed.getFrom());
                 assertEquals("Destination of " + uci, to, parsed.getTo());
                 assertEquals(indexed, parsed);
@@ -284,9 +284,9 @@ public class ChessMoveTests {
 
     @Test
     public void equalMovesHaveEqualValues() {
-        ChessMove first = new ChessMove("e2e4");
-        ChessMove second = new ChessMove(12, 28);
-        ChessMove third = new ChessMove(12, 28, null);
+        Move first = new Move("e2e4");
+        Move second = new Move(12, 28);
+        Move third = new Move(12, 28, null);
         assertEquals(first, first);
         assertEquals(first, second);
         assertEquals(second, first);
@@ -298,8 +298,8 @@ public class ChessMoveTests {
 
     @Test
     public void equalPromotionsHaveEqualValues() {
-        ChessMove first = new ChessMove("a7a8n");
-        ChessMove second = new ChessMove(48, 56, KnightPiece.class);
+        Move first = new Move("a7a8n");
+        Move second = new Move(48, 56, KnightPiece.class);
         assertEquals(first, second);
         assertEquals(second, first);
         assertEquals(first.hashCode(), second.hashCode());
@@ -307,52 +307,52 @@ public class ChessMoveTests {
 
     @Test
     public void movesWithDifferentOriginsAreNotEqual() {
-        assertNotEquals(new ChessMove("e2e4"), new ChessMove("e3e4"));
+        assertNotEquals(new Move("e2e4"), new Move("e3e4"));
     }
 
     @Test
     public void movesWithDifferentDestinationsAreNotEqual() {
-        assertNotEquals(new ChessMove("e2e4"), new ChessMove("e2e3"));
+        assertNotEquals(new Move("e2e4"), new Move("e2e3"));
     }
 
     @Test
     public void reversedMovesAreNotEqual() {
-        assertNotEquals(new ChessMove(0, 63), new ChessMove(63, 0));
+        assertNotEquals(new Move(0, 63), new Move(63, 0));
     }
 
     @Test
     public void allPromotionChoicesAreDistinctValues() {
-        Set<ChessMove> moves = new HashSet<>();
+        Set<Move> moves = new HashSet<>();
         for (String suffix : new String[] {"", "q", "r", "b", "n"}) {
-            moves.add(new ChessMove("a7a8" + suffix));
+            moves.add(new Move("a7a8" + suffix));
         }
         assertEquals(5, moves.size());
     }
 
     @Test
     public void promotionAndNonPromotionMovesAreNotEqual() {
-        assertNotEquals(new ChessMove("a7a8q"), new ChessMove("a7a8"));
+        assertNotEquals(new Move("a7a8q"), new Move("a7a8"));
     }
 
     @Test
     public void moveIsNotEqualToNullOrAnotherType() {
-        ChessMove move = new ChessMove("e2e4");
+        Move move = new Move("e2e4");
         assertFalse(move.equals(null));
         assertFalse(move.equals("e2e4"));
     }
 
     @Test
     public void equalMovesWorkAsSetKeys() {
-        Set<ChessMove> moves = new HashSet<>();
-        moves.add(new ChessMove("e2e4"));
-        moves.add(new ChessMove(12, 28));
+        Set<Move> moves = new HashSet<>();
+        moves.add(new Move("e2e4"));
+        moves.add(new Move(12, 28));
         assertEquals(1, moves.size());
-        assertTrue(moves.contains(new ChessMove("e2e4")));
-        assertFalse(moves.contains(new ChessMove("e2e3")));
+        assertTrue(moves.contains(new Move("e2e4")));
+        assertFalse(moves.contains(new Move("e2e3")));
     }
 
     private static void assertCoordinates(String input, int from, int to) {
-        ChessMove move = new ChessMove(input);
+        Move move = new Move(input);
         assertEquals(from, move.getFrom());
         assertEquals(to, move.getTo());
         assertFalse(move.getPromotionPieceClass().isPresent());
@@ -360,19 +360,19 @@ public class ChessMoveTests {
     }
 
     private static void assertPromotion(
-            String input, int from, int to, Class<? extends ChessPiece> type) {
-        ChessMove move = new ChessMove(input);
+            String input, int from, int to, Class<? extends Piece> type) {
+        Move move = new Move(input);
         assertEquals(from, move.getFrom());
         assertEquals(to, move.getTo());
         assertEquals(type, move.getPromotionPieceClass().orElseThrow());
         assertEquals(input, move.getUciMoveString());
     }
 
-    private static void assertIndexPromotion(Class<? extends ChessPiece> type, String suffix) {
-        ChessMove move = new ChessMove(48, 56, type);
+    private static void assertIndexPromotion(Class<? extends Piece> type, String suffix) {
+        Move move = new Move(48, 56, type);
         assertEquals(type, move.getPromotionPieceClass().orElseThrow());
         assertEquals("a7a8" + suffix, move.getUciMoveString());
-        assertEquals(new ChessMove("a7a8" + suffix), move);
+        assertEquals(new Move("a7a8" + suffix), move);
     }
 
     private static int[] invalidIndices() {
@@ -382,7 +382,7 @@ public class ChessMoveTests {
     private static void assertInvalidMoves(String... inputs) {
         for (String input : inputs) {
             assertThrows("Expected rejection of [" + input + "]",
-                    IllegalArgumentException.class, () -> new ChessMove(input));
+                    IllegalArgumentException.class, () -> new Move(input));
         }
     }
 }
