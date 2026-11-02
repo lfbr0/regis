@@ -55,11 +55,13 @@ public class Engine {
         List<EngineMove> results = new ArrayList<>();
 
         try {
+            // for each legal move, evaluate it on parallel
             for (Move move : MoveValidator.getLegalMoves(state)) {
                 if (System.nanoTime() - deadline >= 0) {
                     break;
                 }
 
+                // boot up parallel evaluation for this move
                 futures.add(completed.submit(new EngineMoveEvaluator(state, move, depth, deadline, mateFound)));
             }
 
