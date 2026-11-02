@@ -1,4 +1,4 @@
-package com.github.lfbr0.engine;
+package com.github.lfbr0.move;
 
 /**
  * @author Luís Filipe Ribeiro (lfbr0 @ Github)

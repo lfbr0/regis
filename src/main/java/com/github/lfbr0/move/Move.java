@@ -1,4 +1,4 @@
-package com.github.lfbr0.engine;
+package com.github.lfbr0.move;
 
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.*;
