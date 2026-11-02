@@ -137,6 +137,12 @@ public class ChessMoveValidator {
         return true;
     }
 
+
+    /**
+     * UTILITIES - Auxiliary methods
+     */
+
+
     /**
      * This checks if the move is valid for the piece and has the right geometry.
      * For example, h1 and a2 are one offset away, you cannot wrap around the board.
