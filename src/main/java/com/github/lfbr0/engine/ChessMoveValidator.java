@@ -149,6 +149,7 @@ public class ChessMoveValidator {
         int offset = to - from;
 
         // rule to remember: idx % 8 = file
+        // rule to remember: idx / 8 = rank because 0/8 = 0, 1/8 = 1, 16/8 = 2, etc.
 
         if (movingPiece instanceof PawnPiece) {
             // if on first file, cannot move left since destination wraps around
@@ -236,7 +237,42 @@ public class ChessMoveValidator {
             //TODO
         }
         else if (movingPiece instanceof KingPiece) {
-            //TODO
+            // cannot go left on first file
+            if (offset == -1 && from % 8 == 0) {
+                return false;
+            }
+            // cannot go right on last file
+            if (offset == 1 && from % 8 == 7) {
+                return false;
+            }
+            // cannot go down on first rank
+            if (offset == -8 && from < 8) { // idx 8 = a2
+                return false;
+            }
+            // cannot go up on last rank
+            if (offset == 8 && from > 55) { // idx 55 = h7
+                return false;
+            }
+            // cannot go diagonally up left
+            if (offset == 7 && (from % 8 == 0 || from == 57)) { // idx 57 = b8
+                return false;
+            }
+            // cannot go diagonally up right
+            if (offset == 9 && (from % 8 == 7 || from == 62)) { // idx 62 = g8
+                return false;
+            }
+            // cannot go diagonally down left
+            if (offset == -9 && (from % 8 == 0 || from == 1)) { // idx 1 = b1
+                return false;
+            }
+            // cannot go diagonally down right
+            if (offset == -7 && (from % 8 == 7 || from == 6)) { // idx 6 = g1
+                return false;
+            }
+            // castling checks on same rank
+            if (Math.abs(offset) == 2 && from / 8 != to / 8) {
+                return false;
+            }
         }
         else {
             throw new IllegalArgumentException("Invalid piece type: " + movingPiece.getClass());
