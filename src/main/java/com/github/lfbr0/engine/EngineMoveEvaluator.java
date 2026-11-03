@@ -33,7 +33,6 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
     private final Move move;
     private final int depth;
     private final long deadline;
-    private final AtomicBoolean mateFound;
     private final BiFunction<GameState, Boolean, Double> evaluationFunction; // game state, is white -> result
 
     @Override
@@ -44,12 +43,6 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
             boolean playerIsWhite = state.isWhiteTurn();
             GameState nextState = MoveHandler.applyMove(state, move);
             double score = evaluateDepth(nextState, playerIsWhite, depth - 1);
-
-            // only signal after this root move has a proven winning score
-            // finding mate in one internal branch isn't enough
-            if (score == CHECKMATE_REWARD_VALUE) {
-                mateFound.set(true);
-            }
 
             return Optional.of(new EngineMove(move, score));
         } catch (CancellationException ignored) {
@@ -117,7 +110,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
      * Stops search if mate found or deadline reached.
      */
     private void shouldStopSearch() {
-        if (Thread.currentThread().isInterrupted() || mateFound.get() || System.nanoTime() - deadline >= 0) {
+        if (Thread.currentThread().isInterrupted() || System.nanoTime() - deadline >= 0) {
             throw new CancellationException("Evaluation stopped");
         }
     }

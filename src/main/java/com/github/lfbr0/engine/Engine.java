@@ -13,7 +13,6 @@ import com.github.lfbr0.move.MoveValidator;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
 import static java.lang.Runtime.getRuntime;
@@ -64,11 +63,8 @@ public class Engine {
             return new EngineMove[0];
         }
 
-        // all evaluators get the same deadline and mate signal
+        // all evaluators get the same deadline and evaluation function
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-        AtomicBoolean mateFound = new AtomicBoolean(false);
-
-        // evaluation function is shared by all evaluators
         BiFunction<GameState, Boolean, Double> evalFunction = this::evaluate;
 
         List<EngineMoveEvaluator> tasks = MoveValidator.getLegalMoves(state)
@@ -78,7 +74,6 @@ public class Engine {
                         move,
                         depth,
                         deadline,
-                        mateFound,
                         evalFunction
                 ))
                 .toList();
