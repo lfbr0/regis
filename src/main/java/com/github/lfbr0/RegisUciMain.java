@@ -2,24 +2,29 @@ package com.github.lfbr0;
 
 import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.engine.Engine;
+import com.github.lfbr0.engine.EngineMove;
 import com.github.lfbr0.move.Move;
 import com.github.lfbr0.move.MoveHandler;
 import com.github.lfbr0.move.MoveValidator;
 
-import java.util.Locale;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Scanner;
-
-import static java.util.concurrent.Executors.newFixedThreadPool;
 
 /**
  * This is the entry point of the application.
- * It starts with UCI prompt for usage...
+ * Reads UCI commands from stdin and sends replies through stdout.
  */
 public class RegisUciMain {
 
-    // will be initialized when necessaty
     private final static Engine ENGINE = new Engine();
     private static GameState GAME_STATE = new GameState();
+
+    // this thread calls the engine, which already manages its own workers
+    private static Thread SEARCH_THREAD;
+
+    // protects search ownership and bestmove publication
+    private final static Object SEARCH_LOCK = new Object();
 
     public static void main( String[] args ) {
         Scanner scanner = new Scanner(System.in);
@@ -34,17 +39,24 @@ public class RegisUciMain {
                         .trim()
                         .replaceAll("\\s+", " ");
 
+                if (command.isEmpty()) {
+                    continue;
+                }
 
-                boolean shouldExit = interpretUciCommand(command);
-                if (shouldExit) {
-                    break;
+                try {
+                    if (interpretUciCommand(command)) {
+                        break;
+                    }
+                } catch (IllegalArgumentException e) {
+                    // bad input shouldn't stop the application
+                    System.err.println("Invalid command: " + e.getMessage());
                 }
             }
-        } catch (IllegalArgumentException e) {
-            System.err.println("Invalid command: " + e.getMessage());
         } finally {
-            scanner.close();
+            // don't publish results when the application is closing
+            stopSearch(false);
             ENGINE.shutdown();
+            scanner.close();
         }
     }
 
@@ -60,75 +72,218 @@ public class RegisUciMain {
 
         // send basic info
         if (command.equals("uci")) {
-            System.out.println("id name Regis");
-            System.out.println("id author Luís Filipe Ribeiro");
-            System.out.println("uciok");
+            sendToStdOut("id name Regis");
+            sendToStdOut("id author Luís Filipe Ribeiro");
+            sendToStdOut("uciok");
             return false;
         }
-        // is it ready
+
+        // this must also work while the engine is searching
         if (command.equals("isready")) {
-            System.out.println("readyok");
-        }
-        // start new game by resetting the board & engine
-        if (command.equals("ucinewgame")) {
-            GAME_STATE = new GameState();
-            ENGINE.resetEngine();
-        }
-        // position commands
-        if (command.startsWith("position ")) {
-            setPosition(command.substring("position ".length()));
+            sendToStdOut("readyok");
+            return false;
         }
 
+        // stop previous work before resetting the engine
+        if (command.equals("ucinewgame")) {
+            stopSearch(false);
+
+            GAME_STATE = new GameState();
+            ENGINE.resetEngine();
+            return false;
+        }
+
+        // position commands
+        if (command.equals("position") || command.startsWith("position ")) {
+            setPosition(command.substring("position".length()).trim());
+            return false;
+        }
+
+        // search commands
+        if (command.equals("go") || command.startsWith("go ")) {
+            startSearch(command.substring("go".length()).trim());
+            return false;
+        }
+
+        // stop search and publish its best available move
+        if (command.equals("stop")) {
+            stopSearch(true);
+            return false;
+        }
+
+        // ignore commands we don't support yet
         return false;
     }
 
     /**
-     * set board position after a position command.
+     * Sets board position after a position command.
      * @param command rest of the command
      */
     private static void setPosition(String command) {
-        int movesIndex = command.indexOf(" moves ");
+        String[] tokens = command.split("\\s+");
         GameState nextState;
+        int index;
 
         // set board with default position
-        if (command.startsWith("startpos ")) {
+        if (tokens[0].equals("startpos")) {
             nextState = new GameState();
+            index = 1;
         }
-        // set board with FEN string
-        else if (command.startsWith("fen")) {
-            String fen = command.substring(
-                    "fen ".length(),
-                    movesIndex == -1 ? command.length() : movesIndex
-            );
+        // set board with six FEN fields
+        else if (tokens[0].equals("fen") && tokens.length >= 7) {
+            String fen = String.join(" ", Arrays.copyOfRange(tokens, 1, 7));
             nextState = new GameState(fen);
+            index = 7;
         } else {
-            throw new IllegalArgumentException("Invalid position command: " + command);
+            throw new IllegalArgumentException("Expected startpos or six FEN fields");
         }
 
-        // if no moves to apply
-        if (movesIndex == -1) {
-            return;
-        }
-
-        // apply moves now
-        String[] uciMoves = command
-                .substring(movesIndex + " moves ".length())
-                .trim()
-                .split("\\s+");
-
-        // apply moves
-        for (String uciMove : uciMoves) {
-            Move move = new Move(uciMove.trim());
-
-            if (!MoveValidator.isLegalMove(nextState, move)) {
-                throw new IllegalArgumentException("Invalid move: " + uciMove);
+        // apply optional moves locally
+        if (index < tokens.length) {
+            if (!tokens[index].equals("moves")) {
+                throw new IllegalArgumentException("Expected moves keyword");
             }
 
-            // update game state by move
-            nextState = MoveHandler.applyMove(nextState, move);
+            for (index++; index < tokens.length; index++) {
+                Move move = new Move(tokens[index]);
+
+                if (!MoveValidator.isLegalMove(nextState, move)) {
+                    throw new IllegalArgumentException(
+                            "Invalid move: " + tokens[index]);
+                }
+
+                nextState = MoveHandler.applyMove(nextState, move);
+            }
         }
 
-        // commit game state
+        // don't allow the old search to publish for the new position
+        stopSearch(false);
+
+        // commit only after the entire command succeeds
         GAME_STATE = nextState;
+    }
+
+    /**
+     * Starts a search for best move without blocking the command loop.
+     * @param command depth and/or movetime arguments
+     */
+    private static void startSearch(String command) {
+        int depth = Integer.MAX_VALUE;
+        long timeoutMillis = Long.MAX_VALUE / 1_000_000L;
+
+        if (command.isBlank()) {
+            throw new IllegalArgumentException("Expected go depth N or go movetime N");
+        }
+
+        String[] tokens = command.split("\\s+");
+
+        // parse the limits supported by our engine
+        for (int index = 0; index < tokens.length; index++) {
+            String argument = tokens[index];
+
+            if (!argument.equals("depth") && !argument.equals("movetime")) {
+                throw new IllegalArgumentException("Unsupported go argument: " + argument);
+            }
+
+            if (++index >= tokens.length) {
+                throw new IllegalArgumentException("Missing value for " + argument);
+            }
+
+            if (argument.equals("depth")) {
+                depth = Integer.parseInt(tokens[index]);
+
+                if (depth < 1) {
+                    throw new IllegalArgumentException("Depth must be positive");
+                }
+            } else {
+                timeoutMillis = Long.parseLong(tokens[index]);
+                if (timeoutMillis <= 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
+                    throw new IllegalArgumentException("Invalid movetime");
+                }
+            }
+        }
+
+        stopSearch(false);
+
+        // capture the position and limits for this search
+        GameState state = GAME_STATE;
+        int searchDepth = depth;
+        long searchTimeout = timeoutMillis;
+
+        // keep a legal move if interrupted before any evaluation finishes
+        Move fallback = MoveValidator.getLegalMoves(state)
+                .stream()
+                .min(Comparator.comparing(Move::getUciMoveString))
+                .orElse(null);
+
+        Thread thread = new Thread(() -> {
+            Move bestMove = fallback;
+
+            try {
+                // stop may arrive before this thread starts running
+                if (!Thread.currentThread().isInterrupted() && fallback != null) {
+                    // get best move
+                    EngineMove[] results = ENGINE.bestMoves(state, 1, searchDepth, searchTimeout);
+
+                    if (results.length > 0) {
+                        bestMove = results[0].move();
+                    }
+                }
+            } catch (RuntimeException e) {
+                System.err.println("Search failed: " + e.getMessage());
+            } finally {
+                synchronized (SEARCH_LOCK) {
+                    // only the current search may publish a result
+                    if (SEARCH_THREAD == Thread.currentThread()) {
+                        sendToStdOut("bestmove " + (bestMove == null ? "0000" : bestMove.getUciMoveString()));
+                        SEARCH_THREAD = null;
+                    }
+                }
+            }
+        }, "regis-search");
+
+        synchronized (SEARCH_LOCK) {
+            SEARCH_THREAD = thread;
+            thread.start();
+        }
+    }
+
+    /**
+     * Stops the current search.
+     * @param publishResult true for stop, false when replacing or closing
+     */
+    private static void stopSearch(boolean publishResult) {
+        Thread thread;
+
+        synchronized (SEARCH_LOCK) {
+            thread = SEARCH_THREAD;
+
+            // remove ownership to suppress obsolete results
+            if (!publishResult) {
+                SEARCH_THREAD = null;
+            }
+
+            if (thread != null) {
+                thread.interrupt();
+            }
+        }
+
+        // wait outside the lock so the search can publish and finish
+        if (thread != null) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Sends one complete reply to the GUI.
+     * @param message UCI reply
+     */
+    private static synchronized void sendToStdOut(String message) {
+        System.out.println(message);
+        System.out.flush();
     }
 }

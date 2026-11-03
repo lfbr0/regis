@@ -92,7 +92,7 @@ public class Engine {
             List<Future<Optional<EngineMove>>> futures = executorService.invokeAll(
                     tasks,
                     remainingNanos,
-                    TimeUnit.MILLISECONDS
+                    TimeUnit.NANOSECONDS
             );
 
             for (Future<Optional<EngineMove>> future : futures) {
