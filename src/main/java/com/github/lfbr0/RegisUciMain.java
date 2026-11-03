@@ -10,6 +10,7 @@ import com.github.lfbr0.move.MoveValidator;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This is the entry point of the application.
@@ -72,15 +73,15 @@ public class RegisUciMain {
 
         // send basic info
         if (command.equals("uci")) {
-            sendToStdOut("id name Regis");
-            sendToStdOut("id author Luís Filipe Ribeiro");
-            sendToStdOut("uciok");
+            send("id name Regis");
+            send("id author Luís Filipe Ribeiro");
+            send("uciok");
             return false;
         }
 
         // this must also work while the engine is searching
         if (command.equals("isready")) {
-            sendToStdOut("readyok");
+            send("readyok");
             return false;
         }
 
@@ -218,6 +219,7 @@ public class RegisUciMain {
 
         Thread thread = new Thread(() -> {
             Move bestMove = fallback;
+            boolean usedFallback = fallback != null;
 
             try {
                 // stop may arrive before this thread starts running
@@ -227,6 +229,7 @@ public class RegisUciMain {
 
                     if (results.length > 0) {
                         bestMove = results[0].move();
+                        usedFallback = false;
                     }
                 }
             } catch (RuntimeException e) {
@@ -235,7 +238,12 @@ public class RegisUciMain {
                 synchronized (SEARCH_LOCK) {
                     // only the current search may publish a result
                     if (SEARCH_THREAD == Thread.currentThread()) {
-                        sendToStdOut("bestmove " + (bestMove == null ? "0000" : bestMove.getUciMoveString()));
+                        // if we used a fallback move, log it
+                        if (usedFallback) {
+                            sendInfo("Using legal fallback move; no search result available");
+                        }
+
+                        send("bestmove " + (bestMove == null ? "0000" : bestMove.getUciMoveString()));
                         SEARCH_THREAD = null;
                     }
                 }
@@ -282,8 +290,16 @@ public class RegisUciMain {
      * Sends one complete reply to the GUI.
      * @param message UCI reply
      */
-    private static synchronized void sendToStdOut(String message) {
+    private static synchronized void send(String message) {
         System.out.println(message);
         System.out.flush();
+    }
+
+    /**
+     * Sends one info reply to the GUI.
+     * @param message UCI info reply
+     */
+    private static void sendInfo(String message) {
+        send("info string " + message);
     }
 }
