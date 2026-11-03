@@ -66,6 +66,13 @@ public class GameState {
     }
 
     /**
+     * Start with default values
+     */
+    public GameState() {
+        this(FenCodec.DEFAULT_FEN_STRING);
+    }
+
+    /**
      * Returns a copy of the board.
      * @return copy of the board
      */

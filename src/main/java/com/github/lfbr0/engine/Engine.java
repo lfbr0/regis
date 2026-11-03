@@ -10,7 +10,6 @@ import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.KingPiece;
 import com.github.lfbr0.move.MoveValidator;
-import lombok.AllArgsConstructor;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -26,14 +25,28 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
  * - best N moves
  * - evaluation of board
  */
-
-@AllArgsConstructor
 public class Engine {
 
-    private final ExecutorService executorService;
+    private ExecutorService executorService;
 
     public Engine() {
         executorService = newFixedThreadPool(getRuntime().availableProcessors());
+    }
+
+    /**
+     * This stops all searches currently running
+     * And also clears stale old data
+     */
+    public void resetEngine() {
+        executorService.shutdownNow();
+        executorService = newFixedThreadPool(getRuntime().availableProcessors());
+    }
+
+    /**
+     * This stops all searches currently running
+     */
+    public void shutdown() {
+        executorService.shutdownNow();
     }
 
     /**
