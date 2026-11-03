@@ -91,7 +91,7 @@ public class RegisUciMain {
         GameState nextState;
 
         // set board with default position
-        if (command.startsWith("startpos") || || command.startsWith("startpos moves ")) {
+        if (command.startsWith("startpos ")) {
             nextState = new GameState();
         }
         // set board with FEN string
