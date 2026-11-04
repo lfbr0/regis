@@ -76,9 +76,10 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
             }
 
             // otherwise it's checkmate. if our turn, we lost!
-            return currentState.isWhiteTurn() == playerIsWhite
-                    ? -CHECKMATE_REWARD_VALUE
-                    : CHECKMATE_REWARD_VALUE;
+            // add remaining depth to value early checkmates or punish getting early checkmated
+            double checkmateReward = CHECKMATE_REWARD_VALUE + (remainingDepth * 1000);
+            // if our turn, we got checkmated! negative reward = punishment
+            return currentState.isWhiteTurn() == playerIsWhite ? -checkmateReward : checkmateReward;
         }
 
         // we have no more depth to explore, so just evaluate the board
