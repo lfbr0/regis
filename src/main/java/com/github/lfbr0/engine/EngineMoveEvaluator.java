@@ -42,7 +42,12 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
             boolean playerIsWhite = state.isWhiteTurn();
             GameState nextState = MoveHandler.applyMove(state, move);
-            double score = evaluateDepth(nextState, playerIsWhite, depth - 1);
+            double score = evaluateDepth(
+                    nextState,
+                    playerIsWhite,
+                    depth - 1,
+                    Double.NEGATIVE_INFINITY,
+                    Double.POSITIVE_INFINITY);
 
             return Optional.of(new EngineMove(move, score));
         } catch (CancellationException ignored) {
@@ -56,9 +61,16 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
      * @param currentState current game state
      * @param playerIsWhite true if the player is white, false otherwise
      * @param remainingDepth remaining depth
+     * @param alpha alpha value for alpha beta pruning
+     * @param beta beta value for alpha beta pruning
      * @return evaluation score
      */
-    private double evaluateDepth(GameState currentState, boolean playerIsWhite, int remainingDepth) {
+    private double evaluateDepth(GameState currentState,
+                                 boolean playerIsWhite,
+                                 int remainingDepth,
+                                 double alpha,
+                                 double beta) {
+
         // check cancellation before exploring this position
         shouldStopSearch();
 
@@ -96,12 +108,21 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
             shouldStopSearch();
 
             GameState nextState = MoveHandler.applyMove(currentState, move);
-            double evaluation = evaluateDepth(nextState, playerIsWhite, remainingDepth - 1);
+            double evaluation = evaluateDepth(nextState, playerIsWhite, remainingDepth - 1, alpha, beta);
 
             // our turn: highest score; opponent's turn: lowest score
-            bestScore = playersTurn
-                    ? Math.max(bestScore, evaluation)
-                    : Math.min(bestScore, evaluation);
+            if (playersTurn) {
+                bestScore = Math.max(bestScore, evaluation);
+                alpha = Math.max(alpha, evaluation);
+            } else {
+                bestScore = Math.min(bestScore, evaluation);
+                beta = Math.min(beta, evaluation);
+            }
+
+            // stop if other side has option just as good
+            if (alpha >= beta) {
+                break;
+            }
         }
 
         return bestScore;

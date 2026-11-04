@@ -9,10 +9,18 @@ package com.github.lfbr0.engine;
 import com.github.lfbr0.board.GameState;
 import com.github.lfbr0.board.Piece;
 import com.github.lfbr0.board.piece.KingPiece;
+import com.github.lfbr0.move.Move;
 import com.github.lfbr0.move.MoveValidator;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
 import static java.lang.Runtime.getRuntime;
@@ -33,8 +41,7 @@ public class Engine {
     }
 
     /**
-     * This stops all searches currently running
-     * And also clears stale old data
+     * Requests cancellation of running work and creates a fresh executor.
      */
     public void resetEngine() {
         executorService.shutdownNow();
@@ -42,67 +49,107 @@ public class Engine {
     }
 
     /**
-     * This stops all searches currently running
+     * Requests cancellation of running work and shuts down the executor.
      */
     public void shutdown() {
         executorService.shutdownNow();
     }
 
     /**
-     * Evaluates legal moves concurrently, sharing one deadline.
-     * Stops early when a root move proves a forced checkmate.
-     * @return completed evaluations, best first; possibly fewer than count
+     * Evaluates legal moves concurrently, one depth at a time.
+     * All iterations and evaluators share the same deadline.
+     * @param state current game state
+     * @param count maximum number of moves to return
+     * @param depth maximum depth in plies
+     * @param timeoutMillis total time budget in milliseconds
+     * @return best moves from the last completed depth, or an empty array
+     *         if there are no legal moves or no depth finished
      */
     public EngineMove[] bestMoves(GameState state, int count, int depth, long timeoutMillis) {
-
         if (state == null || count < 0 || depth < 1 || timeoutMillis <= 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
             throw new IllegalArgumentException("Invalid search arguments");
         }
 
-        if (count == 0) {
+        if (count == 0 || Thread.currentThread().isInterrupted()) {
             return new EngineMove[0];
         }
 
-        // all evaluators get the same deadline and evaluation function
+        // start the time budget before generating the root moves
         long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-        BiFunction<GameState, Boolean, Double> evalFunction = this::evaluate;
 
-        List<EngineMoveEvaluator> tasks = MoveValidator.getLegalMoves(state)
-                .stream()
-                .map(move -> new EngineMoveEvaluator(
-                        state,
-                        move,
-                        depth,
-                        deadline,
-                        evalFunction
-                ))
-                .toList();
-
-        List<EngineMove> results = new ArrayList<>();
-
-        try {
-            // move generation already consumed part of our time budget
-            long remainingNanos = Math.max(0, deadline - System.nanoTime());
-
-            List<Future<Optional<EngineMove>>> futures = executorService.invokeAll(
-                    tasks,
-                    remainingNanos,
-                    TimeUnit.NANOSECONDS
-            );
-
-            for (Future<Optional<EngineMove>> future : futures) {
-                if (future.isDone() && !future.isCancelled()) {
-                    future.get().ifPresent(results::add);
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (ExecutionException e) {
-            throw new IllegalStateException("Engine search failed", e.getCause());
+        Set<Move> legalMoves = MoveValidator.getLegalMoves(state);
+        if (legalMoves.isEmpty()) {
+            return new EngineMove[0];
         }
 
-        return results.stream()
-                .sorted(Comparator.comparingDouble(EngineMove::evaluation).reversed()) // best result first
+        // evaluation function is shared by all evaluators
+        BiFunction<GameState, Boolean, Double> evalFunction = this::evaluate;
+        List<EngineMove> lastCompleted = List.of();
+
+        // start at depth one so a timed search can return a shallow result
+        for (int currentDepth = 1; ; currentDepth++) {
+            if (Thread.currentThread().isInterrupted() || deadline - System.nanoTime() <= 0) {
+                break;
+            }
+
+            List<EngineMoveEvaluator> tasks = new ArrayList<>(legalMoves.size());
+
+            for (Move move : legalMoves) {
+                tasks.add(new EngineMoveEvaluator(
+                        state,
+                        move,
+                        currentDepth,
+                        deadline,
+                        evalFunction
+                ));
+            }
+
+            // move generation and earlier iterations already used some time
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                break;
+            }
+
+            List<EngineMove> results = new ArrayList<>(tasks.size());
+
+            try {
+                List<Future<Optional<EngineMove>>> futures = executorService.invokeAll(
+                        tasks,
+                        remainingNanos,
+                        TimeUnit.NANOSECONDS
+                );
+
+                for (Future<Optional<EngineMove>> future : futures) {
+                    if (!future.isCancelled()) {
+                        future.get().ifPresent(results::add);
+                    }
+                }
+            } catch (InterruptedException e) {
+                // keep the last completed depth when UCI sends stop
+                Thread.currentThread().interrupt();
+                break;
+            } catch (ExecutionException e) {
+                throw new IllegalStateException("Engine search failed", e.getCause());
+            }
+
+            // a depth is complete only when every root move has a score
+            // check before limiting the results to the requested count
+            if (results.size() != tasks.size()) {
+                break;
+            }
+
+            lastCompleted = results;
+
+            // every root move finished at this depth
+            System.err.println("Completed depth: " + currentDepth + " plies");
+
+            if (currentDepth == depth) {
+                break;
+            }
+        }
+
+        return lastCompleted.stream()
+                .sorted(Comparator.comparingDouble(EngineMove::evaluation).reversed())
                 .limit(count)
                 .toArray(EngineMove[]::new);
     }
@@ -111,7 +158,7 @@ public class Engine {
      * Evaluates the board state and returns a score.
      * @param state current game state
      * @param playerIsWhite true if the player is white, false otherwise
-     * @return
+     * @return material balance from the player's perspective
      */
     public double evaluate(GameState state, boolean playerIsWhite) {
         if (state == null) {
@@ -123,12 +170,12 @@ public class Engine {
         for (int i = 0; i < 64; i++) {
             Piece piece = state.getPieceAtIndex(i);
 
-            // don't count our king and empty squares
+            // don't count kings and empty squares
             if (piece == null || piece instanceof KingPiece) {
                 continue;
             }
 
-            // if both bools same value, it's the same color piece as player so it's "+"
+            // our pieces add to the score and the opponent's pieces subtract
             materialScore += (piece.isWhite() == playerIsWhite) ? piece.getValue() : -piece.getValue();
         }
 
