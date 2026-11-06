@@ -16,11 +16,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
 /**
  * Evaluates one root move and its continuations. Actually performs the evaluation.
+ *
  * For efficiency, will stop early if mateFound by some other thread.
  */
 @AllArgsConstructor
@@ -34,6 +34,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
     private final int depth;
     private final long deadline;
     private final BiFunction<GameState, Boolean, Double> evaluationFunction; // game state, is white -> result
+    private final TranspositionTable transpositionTable; // for quick lookup of position scores
 
     @Override
     public Optional<EngineMove> call() throws Exception {
@@ -42,12 +43,28 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
             boolean playerIsWhite = state.isWhiteTurn();
             GameState nextState = MoveHandler.applyMove(state, move);
-            double score = evaluateDepth(
-                    nextState,
-                    playerIsWhite,
-                    depth - 1,
-                    Double.NEGATIVE_INFINITY,
-                    Double.POSITIVE_INFINITY);
+            int searchDepth = depth - 1;
+
+            double score;
+            if (transpositionTable.hasEntry(nextState)) {
+                TranspositionTable.TranspositionTableEntry tte = transpositionTable.getEntry(nextState);
+                // At root, bounds are -inf to +inf, so EXACT or any valid stored score works
+                if (tte.flag() == TranspositionTable.TranspositionTableEntry.EXACT && tte.depth() >= searchDepth) {
+                    score = tte.score();
+                } else {
+                    score = evaluateDepth(nextState, playerIsWhite, searchDepth, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+                }
+            } else {
+                score = evaluateDepth(
+                        nextState,
+                        playerIsWhite,
+                        searchDepth,
+                        Double.NEGATIVE_INFINITY,
+                        Double.POSITIVE_INFINITY
+                );
+
+                transpositionTable.setEntry(nextState, score, searchDepth, TranspositionTable.TranspositionTableEntry.EXACT);
+            }
 
             return Optional.of(new EngineMove(move, score));
         } catch (CancellationException ignored) {
@@ -58,6 +75,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
     /**
      * Auxiliary method to evaluate the board state at a given depth.
+     *
      * @param currentState current game state
      * @param playerIsWhite true if the player is white, false otherwise
      * @param remainingDepth remaining depth
@@ -73,6 +91,20 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
         // check cancellation before exploring this position
         shouldStopSearch();
+
+        // check transposition table with depth and bounds validation
+        if (transpositionTable.hasEntry(currentState)) {
+            TranspositionTable.TranspositionTableEntry tte = transpositionTable.getEntry(currentState);
+            if (tte.depth() >= remainingDepth) {
+                if (tte.flag() == TranspositionTable.TranspositionTableEntry.EXACT) {
+                    return tte.score();
+                } else if (tte.flag() == TranspositionTable.TranspositionTableEntry.LOWER_BOUND && tte.score() >= beta) {
+                    return tte.score(); // Beta cutoff
+                } else if (tte.flag() == TranspositionTable.TranspositionTableEntry.UPPER_BOUND && tte.score() <= alpha) {
+                    return tte.score(); // Alpha cutoff
+                }
+            }
+        }
 
         // otherwise, get all legal moves and evaluate them, always assume best moves
         Set<Move> allLegalMoves = MoveValidator.getLegalMoves(currentState);
@@ -102,13 +134,26 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
         // we must maximize our score, and the opponent must minimize it
         boolean playersTurn = currentState.isWhiteTurn() == playerIsWhite;
         double bestScore = playersTurn ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+        double originalAlpha = alpha;
 
         for (Move move : allLegalMoves) {
             // generating moves may have consumed the remaining time
             shouldStopSearch();
 
             GameState nextState = MoveHandler.applyMove(currentState, move);
-            double evaluation = evaluateDepth(nextState, playerIsWhite, remainingDepth - 1, alpha, beta);
+            double evaluation;
+            int nextDepth = remainingDepth - 1;
+
+            if (transpositionTable.hasEntry(nextState)) {
+                TranspositionTable.TranspositionTableEntry tte = transpositionTable.getEntry(nextState);
+                if (tte.depth() >= nextDepth && tte.flag() == TranspositionTable.TranspositionTableEntry.EXACT) {
+                    evaluation = tte.score();
+                } else {
+                    evaluation = evaluateDepth(nextState, playerIsWhite, nextDepth, alpha, beta);
+                }
+            } else {
+                evaluation = evaluateDepth(nextState, playerIsWhite, nextDepth, alpha, beta);
+            }
 
             // our turn: highest score; opponent's turn: lowest score
             if (playersTurn) {
@@ -124,6 +169,18 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
                 break;
             }
         }
+
+        // determine bound flag based on alpha/beta behaviour before storing
+        int flag;
+        if (bestScore <= originalAlpha) {
+            flag = TranspositionTable.TranspositionTableEntry.UPPER_BOUND;
+        } else if (bestScore >= beta) {
+            flag = TranspositionTable.TranspositionTableEntry.LOWER_BOUND;
+        } else {
+            flag = TranspositionTable.TranspositionTableEntry.EXACT;
+        }
+
+        transpositionTable.setEntry(currentState, bestScore, remainingDepth, flag);
 
         return bestScore;
     }

@@ -35,9 +35,11 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 public class Engine {
 
     private ExecutorService executorService;
+    private TranspositionTable transpositionTable;
 
     public Engine() {
         executorService = newFixedThreadPool(getRuntime().availableProcessors());
+        transpositionTable = new TranspositionTable();
     }
 
     /**
@@ -46,6 +48,7 @@ public class Engine {
     public void resetEngine() {
         executorService.shutdownNow();
         executorService = newFixedThreadPool(getRuntime().availableProcessors());
+        transpositionTable = new TranspositionTable();
     }
 
     /**
@@ -53,6 +56,7 @@ public class Engine {
      */
     public void shutdown() {
         executorService.shutdownNow();
+        transpositionTable = new TranspositionTable();
     }
 
     /**
@@ -100,7 +104,8 @@ public class Engine {
                         move,
                         currentDepth,
                         deadline,
-                        evalFunction
+                        evalFunction,
+                        transpositionTable
                 ));
             }
 
