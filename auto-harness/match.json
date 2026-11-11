@@ -1,0 +1,28 @@
+{
+    "engines": [
+        {
+            "name": "Regis candidate",
+            "command": [
+                "java",
+                "-jar",
+                "/home/lfbr0/Projetos/regis/auto-harness/jars/regis-0.0.2.jar"
+            ]
+        },
+        {
+            "name": "Regis baseline",
+            "command": [
+                "java",
+                "-jar",
+                "/home/lfbr0/Projetos/regis/auto-harness/jars/regis-0.0.1.jar"
+            ]
+        }
+    ],
+    "pairs": 31,
+    "control": {
+        "mode": "movetime",
+        "milliseconds": 1000
+    },
+    "response_timeout_seconds": 30,
+    "grace_seconds": 0.5,
+    "max_plies": 400
+}

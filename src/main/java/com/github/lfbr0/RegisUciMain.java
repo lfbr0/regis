@@ -172,6 +172,19 @@ public class RegisUciMain {
         int depth = Integer.MAX_VALUE;
         long timeoutMillis = Long.MAX_VALUE / 1_000_000L;
 
+        // -1 means the GUI didn't provide this limit
+        long moveTime = -1;
+        long whiteTime = -1;
+        long blackTime = -1;
+
+        // increments are added after completing a move
+        long whiteIncrement = 0;
+        long blackIncrement = 0;
+
+        // estimate when the GUI doesn't specify the next time control
+        int movesToGo = 30;
+        boolean depthProvided = false;
+
         if (command.isBlank()) {
             throw new IllegalArgumentException("Expected go depth N or go movetime N");
         }
@@ -182,26 +195,87 @@ public class RegisUciMain {
         for (int index = 0; index < tokens.length; index++) {
             String argument = tokens[index];
 
-            if (!argument.equals("depth") && !argument.equals("movetime")) {
-                throw new IllegalArgumentException("Unsupported go argument: " + argument);
+            if (!argument.equals("depth")
+                    && !argument.equals("movetime")
+                    && !argument.equals("wtime")
+                    && !argument.equals("btime")
+                    && !argument.equals("winc")
+                    && !argument.equals("binc")
+                    && !argument.equals("movestogo")) {
+                throw new IllegalArgumentException(
+                        "Unsupported go argument: " + argument);
             }
 
             if (++index >= tokens.length) {
                 throw new IllegalArgumentException("Missing value for " + argument);
             }
 
-            if (argument.equals("depth")) {
-                depth = Integer.parseInt(tokens[index]);
+            long value = Long.parseLong(tokens[index]);
 
-                if (depth < 1) {
-                    throw new IllegalArgumentException("Depth must be positive");
+            if (value < 0) {
+                throw new IllegalArgumentException(argument + " cannot be negative");
+            }
+
+            if (argument.equals("depth")) {
+                if (value < 1 || value > Integer.MAX_VALUE) {
+                    throw new IllegalArgumentException("Invalid depth");
                 }
-            } else {
-                timeoutMillis = Long.parseLong(tokens[index]);
-                if (timeoutMillis <= 0 || timeoutMillis > Long.MAX_VALUE / 1_000_000L) {
+
+                depth = (int) value;
+                depthProvided = true;
+            }
+
+            if (argument.equals("movetime")) {
+                if (value < 1 || value > Long.MAX_VALUE / 1_000_000L) {
                     throw new IllegalArgumentException("Invalid movetime");
                 }
+
+                moveTime = value;
             }
+
+            if (argument.equals("wtime")) {
+                whiteTime = value;
+            }
+
+            if (argument.equals("btime")) {
+                blackTime = value;
+            }
+
+            if (argument.equals("winc")) {
+                whiteIncrement = value;
+            }
+
+            if (argument.equals("binc")) {
+                blackIncrement = value;
+            }
+
+            if (argument.equals("movestogo")) {
+                if (value < 1 || value > Integer.MAX_VALUE) {
+                    throw new IllegalArgumentException("Invalid movestogo");
+                }
+
+                movesToGo = (int) value;
+            }
+        }
+
+        // use the clock belonging to the side about to move
+        boolean whiteToMove = GAME_STATE.isWhiteTurn();
+        long remainingTime = whiteToMove ? whiteTime : blackTime;
+        long increment = whiteToMove ? whiteIncrement : blackIncrement;
+
+        if (remainingTime >= 0) {
+            timeoutMillis = calculateTimeBudget(remainingTime, increment, movesToGo);
+        }
+
+        // apply an explicit movetime limit as well
+        if (moveTime >= 0) {
+            timeoutMillis = Math.min(timeoutMillis, moveTime);
+        }
+
+        // increments alone don't provide a usable search limit
+        if (!depthProvided && moveTime < 0 && remainingTime < 0) {
+            throw new IllegalArgumentException(
+                    "Expected depth, movetime, or a clock for the side to move");
         }
 
         stopSearch(false);
@@ -254,6 +328,33 @@ public class RegisUciMain {
             SEARCH_THREAD = thread;
             thread.start();
         }
+    }
+
+    /**
+     * Calculates how much time we can spend on the current move.
+     * @param remainingTime time left on our clock, in milliseconds
+     * @param increment time added after each move, in milliseconds
+     * @param movesToGo moves until the next time control, or our estimate
+     * @return search budget in milliseconds
+     */
+    private static long calculateTimeBudget(long remainingTime, long increment, int movesToGo) {
+
+        // leave time for move generation, scheduling, and sending bestmove
+        long reserve = Math.min(100, remainingTime / 10);
+
+        // cap the budget to the range accepted by Engine.bestMoves
+        long available = Math.min(
+                remainingTime - reserve,
+                Long.MAX_VALUE / 1_000_000L);
+
+        // spread our remaining time across the expected moves
+        long base = Math.min(available, remainingTime / movesToGo);
+
+        // use part of the increment without exceeding our current clock
+        long extra = Math.min(available - base, increment / 2);
+
+        // the engine requires a positive timeout, even with an exhausted clock
+        return Math.max(1, base + extra);
     }
 
     /**

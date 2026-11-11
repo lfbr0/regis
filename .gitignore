@@ -39,3 +39,8 @@ build/
 .DS_Store
 /.idea
 /.idea
+/auto-harness/.venv
+/auto-harness/jars
+/auto-harness/runs
+/auto-harness/jars
+auto-harness/jars/regis-0.0.1.jar
