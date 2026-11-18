@@ -465,7 +465,7 @@ public class EngineTests {
     @Test
     public void evaluationRejectsNullState() {
         assertThrows(IllegalArgumentException.class,
-                () -> new Engine().evaluate(null, true));
+                () -> GameStateEvaluator.evaluate(null, true));
     }
 
     // utilities below

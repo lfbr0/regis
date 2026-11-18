@@ -41,9 +41,13 @@ if __name__ == "__main__":
     # find latest version
     print("------------- Detecting target version -----------")
     found_versions: list = find_jars("./target")
+    found_versions_len: int = len(found_versions)
 
-    if len(found_versions) != 1:
+    if found_versions_len > 1:
         print("FOUND MORE THAN 1 TARGET JAR!")
+        exit(-1)
+    elif found_versions_len == 0:
+        print("FOUND NO TARGET JARS!")
         exit(-1)
 
     target_version = found_versions[0]

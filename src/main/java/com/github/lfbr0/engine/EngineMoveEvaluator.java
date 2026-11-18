@@ -33,7 +33,6 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
     private final Move move;
     private final int depth;
     private final long deadline;
-    private final BiFunction<GameState, Boolean, Double> evaluationFunction; // game state, is white -> result
     private final TranspositionTable transpositionTable; // for quick lookup of position scores
 
     @Override
@@ -128,7 +127,7 @@ public class EngineMoveEvaluator implements Callable<Optional<EngineMove>> {
 
         // we have no more depth to explore, so just evaluate the board
         if (remainingDepth == 0) {
-            return evaluationFunction.apply(currentState, playerIsWhite);
+            return GameStateEvaluator.evaluate(currentState, playerIsWhite);
         }
 
         // we must maximize our score, and the opponent must minimize it
